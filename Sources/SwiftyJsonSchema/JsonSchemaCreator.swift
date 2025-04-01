@@ -29,12 +29,24 @@ public class JsonSchemaCreator {
             switch subjectType {
             case is String.Type:
                 jsonSchema.type = .string
+            case is [String].Type: // And array of primitive type string
+                jsonSchema.type = .array
+                jsonSchema.items = JSONSchema(type: .string)
             case is Int.Type, is Int8.Type, is Int16.Type, is Int32.Type, is Int64.Type:
                 jsonSchema.type = .integer
+            case is [Int].Type, is [Int8].Type, is [Int16].Type, is [Int32].Type, is [Int64].Type: // And array of primitive integer types
+                jsonSchema.type = .array
+                jsonSchema.items = JSONSchema(type: .integer)
             case is Float.Type, is Double.Type:
                 jsonSchema.type = .number
+            case is [Float].Type, is [Double].Type: // And array of primitive float types
+                jsonSchema.type = .array
+                jsonSchema.items = JSONSchema(type: .number)
             case is Bool.Type:
                 jsonSchema.type = .boolean
+            case is [Bool].Type: // And array of primitive type Bool
+                jsonSchema.type = .array
+                jsonSchema.items = JSONSchema(type: .boolean)
             case is Optional<Any>.Type:
                 jsonSchema.type = .null
             default:
