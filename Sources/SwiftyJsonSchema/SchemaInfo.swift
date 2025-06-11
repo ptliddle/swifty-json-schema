@@ -7,8 +7,7 @@
 
 import Foundation
 
-
-protocol SchemaInfoProtocol {
+protocol SchemaInfoProtocol: Sendable {
     var description: String? { get }
     var subjectValue: Any? { get }
 }
