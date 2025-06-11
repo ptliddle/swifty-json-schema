@@ -19,7 +19,16 @@ public enum JSONSchemaType: String, Codable {
 }
 
 // A struct to represent a JSON Schema
-open class JSONSchema: Codable, CustomDebugStringConvertible {
+open class JSONSchema: Codable, CustomDebugStringConvertible, Equatable, Hashable, Sendable {
+   
+    public static func == (lhs: JSONSchema, rhs: JSONSchema) -> Bool {
+        return lhs == rhs
+    }
+    
+    public var hashValue: Int {
+        return id?.hashValue ?? 0
+    }
+    
     
     var id: String?
     var schema: String?
