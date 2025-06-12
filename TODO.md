@@ -1,0 +1,1 @@
+- Add transparent protocol - Useful for type erased objects in Swift which shouldn't include the wrapping type and should promote up the wrapped content
