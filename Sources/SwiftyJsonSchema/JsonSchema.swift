@@ -8,7 +8,7 @@
 import Foundation
 
 // Represents the type of a JSON Schema
-public enum JSONSchemaType: String, Codable {
+public enum JSONSchemaType: String, Sendable, Codable {
     case object
     case array
     case string
@@ -18,9 +18,21 @@ public enum JSONSchemaType: String, Codable {
     case null
 }
 
-// A struct to represent a JSON Schema
-open class JSONSchema: Codable, CustomDebugStringConvertible {
+public final class PassthroughContainer: Codable, Sendable {
+    let items: JSONSchema?
     
+    init(_ items: JSONSchema?) {
+        self.items = items
+    }
+    
+    static func contain(_ items: JSONSchema?) -> Self? {
+        return Self(items) ?? nil
+    }
+}
+
+// A struct to represent a JSON Schema
+public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
+   
     var id: String?
     var schema: String?
     
@@ -28,7 +40,7 @@ open class JSONSchema: Codable, CustomDebugStringConvertible {
     var type: JSONSchemaType?
     var properties: [String: JSONSchema]?
     var required: [String]?
-    var items: JSONSchema?
+    var items: PassthroughContainer?
     var description: String?
     var enumValues: [String]?
     var format: String?
@@ -65,7 +77,7 @@ open class JSONSchema: Codable, CustomDebugStringConvertible {
         self.type = type
         self.properties = properties
         self.required = required
-        self.items = items
+        self.items = .contain(items)
         self.description = description
         self.enumValues = enumValues
         self.format = format
