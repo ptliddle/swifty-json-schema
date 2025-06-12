@@ -22,6 +22,7 @@ extension Data {
         }
     }
 }
+
 #if DEBUG
 func log(_ items: Any...) {
     print(items)
@@ -33,149 +34,189 @@ func log(_ items: Any...) {
 #endif
 
 
-final class SchemaProducerTests: XCTestCase {
-
-    //MARK: - Test Structures
-    struct PersonInfo: ProducesJSONSchema {
-        static var exampleValue: PersonInfo = PersonInfo(name: "Bob", age: 115, hobbies: ["3D Printing", "Space Exploration", "Classical Music", "Star Trek", "Talking to Guppie", "Drinking Coffee"])
-        
-        var name: String
-        var age: Int
-        var hobbies: [String]
-    }
+//MARK: - Test Structures
+struct PersonInfo: ProducesJSONSchema {
+    static var exampleValue: PersonInfo = PersonInfo(name: "Bob", age: 115, hobbies: ["3D Printing", "Space Exploration", "Classical Music", "Star Trek", "Talking to Guppie", "Drinking Coffee"])
     
-    struct MootInfo: ProducesJSONSchema {
-        static var exampleValue = SchemaProducerTests.MootInfo(name: "Moot 5", date: .now, location: "Vert", attendees: [
-            PersonInfo.exampleValue,
-            PersonInfo(name: "Ricker", age: 68, hobbies: ["Military Strategy", "Combat Tactics", "Weapons Systems", "Interstellar Warfare"]),
-            PersonInfo(name: "Garth", age: 65, hobbies: ["Engineering", "Terraforming", "Asteroid Mining", "Colony Development"]),
-        ])
-        
-        
-        var name: String
-        var date: Date
-        var location: String
-        var attendees: [PersonInfo]
-    }
+    var name: String
+    var age: Int
+    var hobbies: [String]
+}
+
+struct MootInfo: ProducesJSONSchema {
+    static var exampleValue = MootInfo(name: "Moot 5", date: .now, location: "Vert", attendees: [
+        PersonInfo.exampleValue,
+        PersonInfo(name: "Ricker", age: 68, hobbies: ["Military Strategy", "Combat Tactics", "Weapons Systems", "Interstellar Warfare"]),
+        PersonInfo(name: "Garth", age: 65, hobbies: ["Engineering", "Terraforming", "Asteroid Mining", "Colony Development"]),
+    ])
+    
+    
+    var name: String
+    var date: Date
+    var location: String
+    var attendees: [PersonInfo]
+}
+
+// MARK: Tests
+final class SchemaProducerTests: XCTestCase {
     
     func testSimpleStructToJSONSchema() throws {
-        
+        // Create a schema from PersonInfo
         let schema = JsonSchemaCreator.createJSONSchema(from: PersonInfo.self)
         log(schema)
         
-        let jsonData = try JSONEncoder().encode(schema).string
+        // Define the expected schema
+        let expectedSchema = JSONSchema(
+            schema: "http://json-schema.org/draft-07/schema#",
+            type: .object,
+            properties: [
+                "name": JSONSchema(type: .string, additionalProperties: false),
+                "age": JSONSchema(type: .integer, additionalProperties: false),
+                "hobbies": JSONSchema(
+                    type: .array,
+                    items: JSONSchema(type: .string, additionalProperties: false),
+                    additionalProperties: false
+                )
+            ],
+            required: ["name", "age", "hobbies"]
+        )
         
-        log(jsonData)
+        // Assert that the schema matches our expected schema
+        XCTAssertEqual(schema.type, expectedSchema.type)
+        XCTAssertEqual(schema.schema, expectedSchema.schema)
+        
+        // Check required properties
+        XCTAssertEqual(Set(schema.required ?? []), Set(expectedSchema.required ?? []))
+        
+        // Check individual properties
+        guard let schemaProperties = schema.properties,
+              let expectedProperties = expectedSchema.properties else {
+            XCTFail("Missing properties in schema")
+            return
+        }
+        
+        // Check name property
+        XCTAssertEqual(schemaProperties["name"]?.type, expectedProperties["name"]?.type)
+        
+        // Check age property
+        XCTAssertEqual(schemaProperties["age"]?.type, expectedProperties["age"]?.type)
+        
+        // Check hobbies property
+        XCTAssertEqual(schemaProperties["hobbies"]?.type, expectedProperties["hobbies"]?.type)
+        
+        // Check hobbies items
+        XCTAssertEqual(schemaProperties["hobbies"]?.items?.items?.type, expectedProperties["hobbies"]?.items?.items?.type)
+        
+        // Convert schema to JSON string
+        let jsonData = try JSONEncoder().encode(schema)
+        
+        // Define expected JSON string
+        let expectedJsonString = """
+        {"properties":{"name":{"items":{},"additionalProperties":false,"type":"string"},"age":{"items":{},"additionalProperties":false,"type":"integer"},"hobbies":{"items":{"items":{"type":"string","items":{},"additionalProperties":false}},"additionalProperties":false,"type":"array"}},"additionalProperties":false,"required":["name","age","hobbies"],"type":"object","items":{},"$schema":"http://json-schema.org/draft-07/schema#"}
+        """.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Parse both JSON strings to compare them as objects (to avoid formatting differences)
+        let actualJson = try JSONSerialization.jsonObject(with: jsonData, options: [])
+        let expectedJson = try JSONSerialization.jsonObject(with: expectedJsonString.data(using: .utf8)!, options: [])
+        
+        // Convert both back to data with consistent formatting
+        let normalizedActualData = try JSONSerialization.data(withJSONObject: actualJson, options: .sortedKeys)
+        let normalizedExpectedData = try JSONSerialization.data(withJSONObject: expectedJson, options: .sortedKeys)
+        
+        // Compare the normalized JSON strings
+        XCTAssertEqual(try normalizedActualData.string, try normalizedExpectedData.string)
     }
     
     func testMoreComplexStructToJSONSchema() throws {
-        
-        let expectedSchema = """
-        {
-          "$schema" : "http://json-schema.org/draft-07/schema#",
-          "properties" : {
-            "attendees" : {
-              "type" : "array",
-              "items" : {
-                "items" : {
-                  "properties" : {
-                    "hobbies" : {
-                      "items" : {
-                        "items" : {
-                          "type" : "string",
-                          "items" : {
-
-                          },
-                          "additionalProperties" : false
-                        }
-                      },
-                      "type" : "array",
-                      "additionalProperties" : false
-                    },
-                    "age" : {
-                      "type" : "integer",
-                      "items" : {
-
-                      },
-                      "additionalProperties" : false
-                    },
-                    "name" : {
-                      "type" : "string",
-                      "items" : {
-
-                      },
-                      "additionalProperties" : false
-                    }
-                  },
-                  "items" : {
-
-                  },
-                  "type" : "object",
-                  "required" : [
-                    "name",
-                    "age",
-                    "hobbies"
-                  ],
-                  "additionalProperties" : false
-                }
-              },
-              "additionalProperties" : false
-            },
-            "name" : {
-              "items" : {
-
-              },
-              "type" : "string",
-              "additionalProperties" : false
-            },
-            "location" : {
-              "items" : {
-
-              },
-              "type" : "string",
-              "additionalProperties" : false
-            },
-            "date" : {
-              "properties" : {
-                "timeIntervalSinceReferenceDate" : {
-                  "items" : {
-
-                  },
-                  "type" : "number",
-                  "additionalProperties" : false
-                }
-              },
-              "items" : {
-
-              },
-              "type" : "object",
-              "required" : [
-                "timeIntervalSinceReferenceDate"
-              ],
-              "additionalProperties" : false
-            }
-          },
-          "items" : {
-
-          },
-          "type" : "object",
-          "required" : [
-            "name",
-            "date",
-            "location",
-            "attendees"
-          ],
-          "additionalProperties" : false
-        }
-        """
-        
+        // Create a schema from MootInfo
         let schema = JsonSchemaCreator.createJSONSchema(from: MootInfo.self)
         log(schema)
-//        XCTAssertEqual(expectedSchema, schema.debugDescription)
         
-        let jsonData = try JSONEncoder().encode(schema).string
+        // Define the expected schema for MootInfo using the proper initializer
+        let expectedSchema = JSONSchema(
+            schema: "http://json-schema.org/draft-07/schema#",
+            type: .object,
+            properties: [
+                "name": JSONSchema(type: .string, additionalProperties: false),
+                "location": JSONSchema(type: .string, additionalProperties: false),
+                "date": JSONSchema(
+                    type: .object,
+                    properties: [
+                        "timeIntervalSinceReferenceDate": JSONSchema(type: .number, additionalProperties: false)
+                    ],
+                    required: ["timeIntervalSinceReferenceDate"],
+                    additionalProperties: false
+                ),
+                "attendees": JSONSchema(
+                    type: .array,
+                    items: JSONSchema(
+                        type: .object,
+                        properties: [
+                            "name": JSONSchema(type: .string, additionalProperties: false),
+                            "age": JSONSchema(type: .integer, additionalProperties: false),
+                            "hobbies": JSONSchema(
+                                type: .array,
+                                items: JSONSchema(type: .string, additionalProperties: false),
+                                additionalProperties: false
+                            )
+                        ],
+                        required: ["name", "age", "hobbies"],
+                        additionalProperties: false
+                    ),
+                    additionalProperties: false
+                )
+            ],
+            required: ["name", "date", "location", "attendees"],
+            additionalProperties: false
+        )
         
-        log(jsonData)
+        // Assert that the schema matches our expected schema
+        XCTAssertEqual(schema.type, expectedSchema.type)
+        XCTAssertEqual(schema.schema, expectedSchema.schema)
+        
+        // Check required properties
+        XCTAssertEqual(Set(schema.required ?? []), Set(expectedSchema.required ?? []))
+        
+        // Check additionalProperties
+        XCTAssertEqual(schema.additionalProperties, expectedSchema.additionalProperties)
+        
+        // Check individual properties
+        guard let schemaProperties = schema.properties,
+              let expectedProperties = expectedSchema.properties else {
+            XCTFail("Missing properties in schema")
+            return
+        }
+        
+        // Check name property
+        XCTAssertEqual(schemaProperties["name"]?.type, expectedProperties["name"]?.type)
+        
+        // Check location property
+        XCTAssertEqual(schemaProperties["location"]?.type, expectedProperties["location"]?.type)
+        
+        // Check date property
+        XCTAssertEqual(schemaProperties["date"]?.type, expectedProperties["date"]?.type)
+        
+        // Check attendees property
+        XCTAssertEqual(schemaProperties["attendees"]?.type, expectedProperties["attendees"]?.type)
+        
+        // Convert schema to JSON string
+        let jsonData = try JSONEncoder().encode(schema)
+        
+        // Define expected JSON string - this is a simplified version that matches the essential structure
+        let expectedJsonString = """
+        {"properties":{"name":{"items":{},"additionalProperties":false,"type":"string"},"date":{"additionalProperties":false,"items":{},"type":"object","properties":{"timeIntervalSinceReferenceDate":{"type":"number","additionalProperties":false,"items":{}}},"required":["timeIntervalSinceReferenceDate"]},"location":{"items":{},"type":"string","additionalProperties":false},"attendees":{"items":{"items":{"type":"object","additionalProperties":false,"properties":{"age":{"items":{},"type":"integer","additionalProperties":false},"name":{"items":{},"type":"string","additionalProperties":false},"hobbies":{"items":{"items":{"type":"string","additionalProperties":false,"items":{}}},"type":"array","additionalProperties":false}},"items":{},"required":["name","age","hobbies"]}},"type":"array","additionalProperties":false}},"additionalProperties":false,"required":["name","date","location","attendees"],"type":"object","items":{},"$schema":"http://json-schema.org/draft-07/schema#"}
+        """.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Parse both JSON strings to compare them as objects (to avoid formatting differences)
+        let actualJson = try JSONSerialization.jsonObject(with: jsonData, options: [])
+        let expectedJson = try JSONSerialization.jsonObject(with: expectedJsonString.data(using: .utf8)!, options: [])
+        
+        // Convert both back to data with consistent formatting
+        let normalizedActualData = try JSONSerialization.data(withJSONObject: actualJson, options: .sortedKeys)
+        let normalizedExpectedData = try JSONSerialization.data(withJSONObject: expectedJson, options: .sortedKeys)
+        
+        // Compare the normalized JSON strings
+        XCTAssertEqual(try normalizedActualData.string, try normalizedExpectedData.string)
     }
 
     
