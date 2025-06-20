@@ -18,6 +18,8 @@ public enum JSONSchemaType: String, Sendable, Codable {
     case null
 }
 
+
+/// Used when you need to reference a JSONSchema but you can't directly reference yourself in a struct in Swift
 public final class PassthroughContainer: Codable, Sendable {
     let items: JSONSchema?
     
@@ -51,6 +53,10 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
     var pattern: String?
     var additionalProperties: Bool?
     
+    // Used for unions
+    var anyOf: [JSONSchema]
+    var oneOf: [JSONSchema]
+    
     enum CodingKeys: String, CodingKey {
         case id = "$id"
         case schema = "$schema"
@@ -68,9 +74,11 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
         case maxLength
         case pattern
         case additionalProperties = "additionalProperties"
+        case anyOf
+        case oneOf
     }
     
-    public init(id: String? = nil, schema: String? = nil, title: String? = nil, type: JSONSchemaType? = nil, properties: [String : JSONSchema]? = nil, required: [String]? = nil, items: JSONSchema? = nil, description: String? = nil, enumValues: [String]? = nil, format: String? = nil, minimum: Double? = nil, maximum: Double? = nil, minLength: Int? = nil, maxLength: Int? = nil, pattern: String? = nil, additionalProperties: Bool = false) {
+    public init(id: String? = nil, schema: String? = nil, title: String? = nil, type: JSONSchemaType? = nil, properties: [String : JSONSchema]? = nil, required: [String]? = nil, items: JSONSchema? = nil, description: String? = nil, enumValues: [String]? = nil, format: String? = nil, minimum: Double? = nil, maximum: Double? = nil, minLength: Int? = nil, maxLength: Int? = nil, pattern: String? = nil, additionalProperties: Bool = false, anyOf: [JSONSchema] = [], oneOf: [JSONSchema] = []) {
         self.id = id
         self.schema = schema
         self.title = title
@@ -87,6 +95,9 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
         self.maxLength = maxLength
         self.pattern = pattern
         self.additionalProperties = additionalProperties
+        
+        self.oneOf = oneOf
+        self.anyOf = anyOf
     }
     
     public var debugDescription: String {

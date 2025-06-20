@@ -4,7 +4,6 @@
 //
 //  Created by Peter Liddle on 9/17/24.
 //
-
 import Foundation
 
 public class JsonSchemaCreator {
@@ -24,6 +23,29 @@ public class JsonSchemaCreator {
         
         var properties = [String: JSONSchema]()
         var required = [String]()
+        
+        func handleOneOfUnion(oneOfUnion: JSONSchemaOneOfDiscriminatedUnion) -> JSONSchema? {
+            
+            var jsonSchema = JSONSchema()
+            let subjectType = type(of: object)
+            jsonSchema.type = .object
+            jsonSchema.oneOf = oneOfUnion.allowedTypes.compactMap({ sType in
+                return createJSONSchema(for: sType.exampleValue)
+            })
+            return jsonSchema
+        }
+        
+        func handleAnyOfUnion(anyOfUnion: JSONSchemaAnyOfDiscriminatedUnion) -> JSONSchema? {
+            
+            var jsonSchema = JSONSchema()
+            let subjectType = type(of: object)
+            jsonSchema.type = .object
+            jsonSchema.anyOf = anyOfUnion.allowedTypes.compactMap({ sType in
+                return createJSONSchema(for: sType.exampleValue)
+            })
+            
+            return jsonSchema
+        }
         
         func extractSchema(from value: Any) -> JSONSchema? {
             
@@ -54,21 +76,45 @@ public class JsonSchemaCreator {
             case is Optional<Any>.Type:
                 jsonSchema.type = .null
             default:
-                if let codArray = value as? [Codable] {
-                    guard let arrayElement = codArray.first else { return nil }
+                
+                // Handle cases where we didn't match on type and need the value to produce the schema
+                switch value {
+                case let uValue as JSONSchemaOneOfDiscriminatedUnion:
+                    guard let schema = handleOneOfUnion(oneOfUnion: uValue) else {
+                        break
+                    }
+                    jsonSchema = schema
+                case let uValue as JSONSchemaAnyOfDiscriminatedUnion:
+                    guard let schema = handleAnyOfUnion(anyOfUnion: uValue) else {
+                        break
+                    }
+                    jsonSchema = schema
+                case let array as [JSONSchemaOneOfDiscriminatedUnion]:
+                    guard let arrayElement = array.first else { break }
+                    guard let schema = handleOneOfUnion(oneOfUnion: arrayElement) else { break }
+                    jsonSchema.type = .array
+                    jsonSchema.anyOf = [schema]
+                case let array as [JSONSchemaAnyOfDiscriminatedUnion]:
+                    guard let arrayElement = array.first else { break }
+                    guard let schema = handleAnyOfUnion(anyOfUnion: arrayElement) else { break }
+                    jsonSchema.type = .array
+                    jsonSchema.anyOf = [schema]
+                case let array as [Codable]:
+                    guard let arrayElement = array.first else { return nil }
                     jsonSchema.type = .array
                     jsonSchema.items = .contain(_createJSONSchema(for: arrayElement, propertyDescriptions: propertyDescriptions))
-                }
-                else if let codValue = value as? Codable {
+                case let codValue as Codable:
                     var newJsonSchema = _createJSONSchema(for: codValue, propertyDescriptions: propertyDescriptions)
                     newJsonSchema.description = jsonSchema.description
                     jsonSchema = newJsonSchema
+                default:
+                    break
                 }
             }
             
             return jsonSchema
         }
-        
+
         for child in mirror.children {
             
             guard var label = child.label else { continue }
@@ -101,7 +147,7 @@ public class JsonSchemaCreator {
             
             required.append(label)
         }
-
+        
         return JSONSchema(id: id,
                           schema: schema,
                           type: .object,
