@@ -54,8 +54,8 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
     var additionalProperties: Bool?
     
     // Used for unions
-    var anyOf: [JSONSchema]
-    var oneOf: [JSONSchema]
+    var anyOf: [JSONSchema]?
+    var oneOf: [JSONSchema]?
     
     enum CodingKeys: String, CodingKey {
         case id = "$id"
