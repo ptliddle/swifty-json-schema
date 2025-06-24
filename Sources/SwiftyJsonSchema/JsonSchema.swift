@@ -78,7 +78,7 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
         case oneOf
     }
     
-    public init(id: String? = nil, schema: String? = nil, title: String? = nil, type: JSONSchemaType? = nil, properties: [String : JSONSchema]? = nil, required: [String]? = nil, items: JSONSchema? = nil, description: String? = nil, enumValues: [String]? = nil, format: String? = nil, minimum: Double? = nil, maximum: Double? = nil, minLength: Int? = nil, maxLength: Int? = nil, pattern: String? = nil, additionalProperties: Bool = false, anyOf: [JSONSchema] = [], oneOf: [JSONSchema] = []) {
+    public init(id: String? = nil, schema: String? = nil, title: String? = nil, type: JSONSchemaType? = nil, properties: [String : JSONSchema]? = nil, required: [String]? = nil, items: JSONSchema? = nil, description: String? = nil, enumValues: [String]? = nil, format: String? = nil, minimum: Double? = nil, maximum: Double? = nil, minLength: Int? = nil, maxLength: Int? = nil, pattern: String? = nil, additionalProperties: Bool = false, anyOf: [JSONSchema]? = nil, oneOf: [JSONSchema]? = nil) {
         self.id = id
         self.schema = schema
         self.title = title
