@@ -48,6 +48,12 @@ public class JSONSchemaGenerator {
     public func generateSchema<T: Codable>(for object: T) throws -> JSONSchema {
         // Create a base schema with the configuration values
         var schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
+        return try _generateSchema(for: object, schema: schema)
+    }
+     
+    private func _generateSchema<T: Codable>(for object: T, schema: JSONSchema = JSONSchema(type: .object)) throws -> JSONSchema {
+        
+        var schema = schema
         
         // Create dictionaries to store properties and required fields
         var properties: [String: JSONSchema] = [:]
@@ -64,13 +70,17 @@ public class JSONSchemaGenerator {
             // Clean the property name (remove underscore prefix for property wrappers)
             let cleanPropertyName = cleanPropertyName(propertyName)
             
+            guard let value = child.value as? Codable else {
+                throw JSONSchemaGenerationError.notACodableType("\(child.value.self)")
+            }
+            
             if isOptional(child.value) {
-                let propertySchema = generateSchemaForProperty(child.value)
+                let propertySchema = try generateSchemaForProperty(value)
                 properties[cleanPropertyName] = propertySchema
             }
             else {
                 // Generate schema for this property
-                let propertySchema = generateSchemaForProperty(child.value)
+                let propertySchema = try generateSchemaForProperty(value)
                 properties[cleanPropertyName] = propertySchema
                 required.append(cleanPropertyName)
             }
@@ -112,7 +122,21 @@ public class JSONSchemaGenerator {
     /// Generate a JSON Schema for a property value
     /// - Parameter value: The property value to generate a schema for
     /// - Returns: A JSONSchema object representing the property
-    private func generateSchemaForProperty<T>(_ value: T) -> JSONSchema {
+    private func generateSchemaForProperty<T>(_ value: T) throws -> JSONSchema where T: Codable {
+        // Handle optionals by unwrapping and recursing
+        if isOptional(value) {
+            let mirror = Mirror(reflecting: value)
+            if let firstChild = mirror.children.first {
+                guard let value = firstChild.value as? Codable else {
+                    throw JSONSchemaGenerationError.notACodableType("\(firstChild.self)")
+                }
+                return try generateSchemaForProperty(value)
+            } else {
+                // For nil optionals, return a placeholder schema
+                return JSONSchema(type: .object)
+            }
+        }
+        
         // Handle basic primitive types
         switch value {
         case is String:
@@ -134,14 +158,17 @@ public class JSONSchemaGenerator {
                 return JSONSchema(type: .array)
             }
             
+            guard let arrayItem = firstItem as? Codable else {
+                throw JSONSchemaGenerationError.notACodableType("\(firstItem.self)")
+            }
+            
             // Generate schema for the first item to determine array item type
-            let itemSchema = generateSchemaForProperty(firstItem)
+            let itemSchema = try generateSchemaForProperty(arrayItem)
             return JSONSchema(type: .array, items: itemSchema)
             
         default:
-            // For complex types, return an object type as a placeholder
-            // Later we'll implement proper handling for nested objects
-            return JSONSchema(type: .object)
+            // For complex types (like nested Codable objects), use Mirror to generate a schema
+            return try generateSchema(for: value)
         }
     }
 }
