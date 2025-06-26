@@ -41,7 +41,7 @@ Then add the dependency to your target:
 import SwiftyJsonSchema
 ```
 
-2. Make your struct or class conform to `ProducesJSONSchema`:
+1. Make your struct or class conform to `ProducesJSONSchema`:
 
 ```swift
 struct PersonInfo: ProducesJSONSchema {
@@ -54,13 +54,13 @@ struct PersonInfo: ProducesJSONSchema {
 }
 ```
 
-3. Generate JSON Schema:
+1. Generate JSON Schema:
 
 ```swift
 let schema = JsonSchemaCreator.createJSONSchema(from: PersonInfo.self)
 ```
 
-4. Convert to JSON:
+1. Convert to JSON:
 
 ```swift
 let jsonData = try JSONEncoder().encode(schema)
@@ -69,7 +69,7 @@ let jsonString = String(data: jsonData, encoding: .utf8)
 
 ### Adding Property Descriptions
 
-You can add descriptions to properties using the `SchemaInfo` property wrapper:
+You can add descriptions to properties using the `JSONSchemaMetadata` property wrapper:
 
 ```swift
 struct UserProfile: ProducesJSONSchema {
@@ -79,13 +79,13 @@ struct UserProfile: ProducesJSONSchema {
         age: 30
     )
     
-    @SchemaInfo(description: "The user's unique username")
+    @JSONSchemaMetadata(description: "The user's unique username")
     var username: String
     
-    @SchemaInfo(description: "The user's email address")
+    @JSONSchemaMetadata(description: "The user's email address")
     var email: String
     
-    @SchemaInfo(description: "The user's age in years")
+    @JSONSchemaMetadata(description: "The user's age in years")
     var age: Int
 }
 ```
@@ -150,19 +150,19 @@ struct Product: ProducesJSONSchema {
         inStock: true
     )
     
-    @SchemaInfo(description: "Unique product identifier")
+    @JSONSchemaMetadata(description: "Unique product identifier")
     var id: String
     
-    @SchemaInfo(description: "Product name")
+    @JSONSchemaMetadata(description: "Product name")
     var name: String
     
-    @SchemaInfo(description: "Product price in USD")
+    @JSONSchemaMetadata(description: "Product price in USD")
     var price: Double
     
-    @SchemaInfo(description: "Product categories")
+    @JSONSchemaMetadata(description: "Product categories")
     var tags: [String]
     
-    @SchemaInfo(description: "Whether the product is in stock")
+    @JSONSchemaMetadata(description: "Whether the product is in stock")
     var inStock: Bool
 }
 

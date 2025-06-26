@@ -7,7 +7,7 @@ SwiftyJsonSchema is a Swift library that automatically generates JSON Schema def
 ## Key Features
 
 - Generate JSON Schema (Draft-07) from any Swift `Codable` object
-- Add descriptions to properties using the `@SchemaInfo` property wrapper
+- Add descriptions to properties using the `@JSONSchemaMetadata` property wrapper
 - Support for all basic Swift types and their arrays
 - Support for nested objects and arrays of objects
 - Customizable schema ID and schema URL
@@ -86,20 +86,20 @@ This will output a JSON Schema like:
 
 ## Adding Property Descriptions
 
-Use the `@SchemaInfo` property wrapper to add descriptions to your properties:
+Use the `@JSONSchemaMetadata` property wrapper to add descriptions to your properties:
 
 ```swift
 struct Person: Codable {
-    @SchemaInfo(description: "The person's full name")
+    @JSONSchemaMetadata(description: "The person's full name")
     var name: String
     
-    @SchemaInfo(description: "Age in years")
+    @JSONSchemaMetadata(description: "Age in years")
     var age: Int
     
-    @SchemaInfo(description: "Whether the person is currently active")
+    @JSONSchemaMetadata(description: "Whether the person is currently active")
     var isActive: Bool
     
-    @SchemaInfo(description: "Height in meters")
+    @JSONSchemaMetadata(description: "Height in meters")
     var height: Double?
 }
 ```
@@ -199,38 +199,38 @@ import SwiftyJsonSchema
 
 // Define models
 struct Address: Codable {
-    @SchemaInfo(description: "Street name and number")
+    @JSONSchemaMetadata(description: "Street name and number")
     var street: String
     
-    @SchemaInfo(description: "City name")
+    @JSONSchemaMetadata(description: "City name")
     var city: String
     
-    @SchemaInfo(description: "Postal/ZIP code")
+    @JSONSchemaMetadata(description: "Postal/ZIP code")
     var zipCode: String
 }
 
 struct PhoneNumber: Codable {
-    @SchemaInfo(description: "Type of phone (home, work, mobile)")
+    @JSONSchemaMetadata(description: "Type of phone (home, work, mobile)")
     var type: String
     
-    @SchemaInfo(description: "Phone number with country code")
+    @JSONSchemaMetadata(description: "Phone number with country code")
     var number: String
 }
 
 struct Person: Codable {
-    @SchemaInfo(description: "The person's full name")
+    @JSONSchemaMetadata(description: "The person's full name")
     var name: String
     
-    @SchemaInfo(description: "Age in years")
+    @JSONSchemaMetadata(description: "Age in years")
     var age: Int
     
-    @SchemaInfo(description: "Whether the person is currently active")
+    @JSONSchemaMetadata(description: "Whether the person is currently active")
     var isActive: Bool
     
-    @SchemaInfo(description: "Residential address")
+    @JSONSchemaMetadata(description: "Residential address")
     var address: Address
     
-    @SchemaInfo(description: "List of contact phone numbers")
+    @JSONSchemaMetadata(description: "List of contact phone numbers")
     var phoneNumbers: [PhoneNumber]
 }
 
@@ -255,7 +255,7 @@ print(schema.debugDescription)
 
 ## Best Practices
 
-1. Always use the `@SchemaInfo` property wrapper to add descriptions to your properties for better documentation.
+1. Always use the `@JSONSchemaMetadata` property wrapper to add descriptions to your properties for better documentation.
 2. For complex models, generate schemas for each component separately if needed.
 3. Use meaningful schema IDs that follow your organization's naming conventions.
 4. Consider storing generated schemas as part of your API documentation.

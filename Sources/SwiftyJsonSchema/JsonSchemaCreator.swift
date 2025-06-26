@@ -215,11 +215,11 @@ public class JsonSchemaCreator {
             var jsonSchema: JSONSchema
             
             // Ignore the field
-            if let _ = value as? IgnorableField {
+            if let _ = value as? JSONSchemaIgnorable {
                 continue
             }
             
-            if let describedProp = value as? SchemaInfoProtocol {
+            if let describedProp = value as? JSONSchemaMetadataProtocol {
                 
                 guard let value = describedProp.subjectValue else { continue }
                 
@@ -361,7 +361,7 @@ public class JsonSchemaCreator {
             jsonSchema.type = .null
         case let EnumType as ProducesUnionJSONSchema.Type:
             jsonSchema = createJSONSchema(from: EnumType)
-        case is IgnoreFieldInSchema<Any>.Type:
+        case is JSONSchemaExclude<Any>.Type:
             print("Ignored field")
             break // we do nothing with this
         default:

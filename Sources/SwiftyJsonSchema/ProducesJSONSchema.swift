@@ -1,8 +1,9 @@
 //
-//  SchemaInfo.swift
+//  ProducesJSONSchema.swift
 //
 //
 //  Created by Peter Liddle on 9/17/24.
+//  Updated on 6/26/25.
 //
 
 public protocol JSONSchemaGeneratable: Codable, Sendable {}

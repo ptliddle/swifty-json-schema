@@ -3,19 +3,20 @@
 //
 //
 //  Created by Peter Liddle on 9/17/24.
+//  Updated on 6/26/25.
 //
 
 import Foundation
 
-protocol SchemaInfoProtocol: Sendable {
+protocol JSONSchemaMetadataProtocol: Sendable {
     var description: String? { get }
     var subjectValue: Any? { get }
 }
 
-protocol IgnorableField {}
+protocol JSONSchemaIgnorable {}
 
 @propertyWrapper
-public struct IgnoreFieldInSchema<Value>: IgnorableField {
+public struct JSONSchemaExclude<Value>: JSONSchemaIgnorable {
     public var wrappedValue: Value
     
     public init(wrappedValue: Value) {
@@ -28,7 +29,7 @@ public protocol DynamicSchema {}
 
 
 @propertyWrapper
-public struct OptionalSchemaInfo<T: Codable>: Codable, SchemaInfoProtocol {
+public struct OptionalJSONSchemaMetadata<T: Codable>: Codable, JSONSchemaMetadataProtocol {
 
     public var wrappedValue: T?
     public var description: String?
@@ -57,7 +58,7 @@ public struct OptionalSchemaInfo<T: Codable>: Codable, SchemaInfoProtocol {
 }
 
 @propertyWrapper
-public struct SchemaInfo<T: Codable>: Codable, SchemaInfoProtocol {
+public struct JSONSchemaMetadata<T: Codable>: Codable, JSONSchemaMetadataProtocol {
 
     public var wrappedValue: T
     public var description: String?
