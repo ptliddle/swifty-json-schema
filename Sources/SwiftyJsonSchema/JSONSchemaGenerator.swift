@@ -47,7 +47,7 @@ public class JSONSchemaGenerator {
     /// - Returns: A JSONSchema object representing the schema
     public func generateSchema<T: Codable>(for object: T) throws -> JSONSchema {
         // Create a base schema with the configuration values
-        var schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
+        let schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
         return try _generateSchema(for: object, schema: schema)
     }
      
@@ -151,20 +151,68 @@ public class JSONSchemaGenerator {
         case is Bool:
             return JSONSchema(type: .boolean)
             
+        // Handle Foundation types
+        case _ as URL:
+            var schema = JSONSchema(type: .string)
+            schema.format = "uri"
+            return schema
+            
+        case _ as Date:
+            var schema = JSONSchema(type: .string)
+            schema.format = "date-time"
+            return schema
+            
         // Handle arrays
         case let array as [Any]:
             // If the array is empty, we can't determine the item type
+            if array.isEmpty {
+                return JSONSchema(type: .array)
+            }
+            
+            // Get the first item to determine array item type
             guard let firstItem = array.first else {
                 return JSONSchema(type: .array)
             }
             
+            // Check that the item is Codable
             guard let arrayItem = firstItem as? Codable else {
                 throw JSONSchemaGenerationError.notACodableType("\(firstItem.self)")
             }
             
-            // Generate schema for the first item to determine array item type
+            // Generate schema for the item
             let itemSchema = try generateSchemaForProperty(arrayItem)
             return JSONSchema(type: .array, items: itemSchema)
+            
+        // Handle dictionaries
+        case let dict as [String: Any]:
+            // For dictionaries, we create an object schema with string keys and dynamic values
+            var schema = JSONSchema(type: .object)
+            
+            // Set additionalProperties to true to allow any properties beyond those defined
+            schema.additionalProperties = true
+            
+            // If the dictionary is empty, we can't determine the value type
+            if dict.isEmpty {
+                return schema
+            }
+            
+            // For non-empty dictionaries, we'll create a properties map with the existing keys
+            var properties = [String: JSONSchema]()
+            
+            // Process each key-value pair
+            for (key, value) in dict {
+                // Check that the value is Codable
+                guard let dictValue = value as? Codable else {
+                    throw JSONSchemaGenerationError.notACodableType("\(value.self)")
+                }
+                
+                // Generate schema for the value
+                let valueSchema = try generateSchemaForProperty(dictValue)
+                properties[key] = valueSchema
+            }
+            
+            schema.properties = properties
+            return schema
             
         default:
             // For complex types (like nested Codable objects), use Mirror to generate a schema
