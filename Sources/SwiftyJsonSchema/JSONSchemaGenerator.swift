@@ -7,6 +7,10 @@
 
 import Foundation
 
+enum JSONSchemaGenerationError: Error {
+    case notACodableType(String)
+}
+
 /// A class that generates JSON Schema from Swift Codable types
 public class JSONSchemaGenerator {
     
@@ -41,7 +45,7 @@ public class JSONSchemaGenerator {
     /// - Parameters:
     ///   - object: The object to generate a schema for
     /// - Returns: A JSONSchema object representing the schema
-    public func generateSchema<T: Codable>(for object: T) -> JSONSchema {
+    public func generateSchema<T: Codable>(for object: T) throws -> JSONSchema {
         // Create a base schema with the configuration values
         var schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
         
@@ -56,6 +60,8 @@ public class JSONSchemaGenerator {
         for child in mirror.children {
             // Skip if the property has no label
             guard let propertyName = child.label else { continue }
+            
+            guard let value = child.value as? Codable else { throw JSONSchemaGenerationError.notACodableType("\(child.value.self)") }
             
             // Clean the property name (remove underscore prefix for property wrappers)
             let cleanPropertyName = cleanPropertyName(propertyName)
@@ -79,10 +85,10 @@ public class JSONSchemaGenerator {
     /// - Parameters:
     ///   - type: The type to generate a schema for
     /// - Returns: A JSONSchema object representing the schema
-    public func generateSchema<T: ProducesJSONSchema>(for type: T.Type) -> JSONSchema {
+    public func generateSchema<T: ProducesJSONSchema>(for type: T.Type) throws -> JSONSchema {
         // This is just a stub that will be implemented later
         let instance = T.exampleValue
-        return generateSchema(for: instance)
+        return try generateSchema(for: instance)
     }
     
     // MARK: - Private Methods
@@ -99,7 +105,7 @@ public class JSONSchemaGenerator {
     /// Generate a JSON Schema for a property value
     /// - Parameter value: The property value to generate a schema for
     /// - Returns: A JSONSchema object representing the property
-    private func generateSchemaForProperty(_ value: Any) -> JSONSchema {
+    private func generateSchemaForProperty<T>(_ value: T) -> JSONSchema {
         // Handle basic primitive types
         switch value {
         case is String:
