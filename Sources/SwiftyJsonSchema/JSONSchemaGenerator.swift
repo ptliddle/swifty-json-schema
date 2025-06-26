@@ -1,0 +1,134 @@
+//
+//  JSONSchemaGenerator.swift
+//
+//
+//  Created on 6/26/25.
+//
+
+import Foundation
+
+/// A class that generates JSON Schema from Swift Codable types
+public class JSONSchemaGenerator {
+    
+    /// Configuration options for JSON Schema generation
+    public struct Configuration {
+        /// The JSON Schema version to use
+        public let schemaVersion: String
+        
+        /// The schema ID to use
+        public let schemaId: String?
+        
+        /// Whether to include descriptions from property wrappers
+        public let includeDescriptions: Bool
+        
+        /// Initialize with default values
+        public init(schemaVersion: String = "http://json-schema.org/draft-07/schema#", schemaId: String? = nil, includeDescriptions: Bool = true) {
+            self.schemaVersion = schemaVersion
+            self.schemaId = schemaId
+            self.includeDescriptions = includeDescriptions
+        }
+    }
+    
+    /// The configuration for this generator
+    private let configuration: Configuration
+    
+    /// Initialize with the given configuration
+    public init(configuration: Configuration = Configuration()) {
+        self.configuration = configuration
+    }
+    
+    /// Generate a JSON Schema for the given Codable object
+    /// - Parameters:
+    ///   - object: The object to generate a schema for
+    /// - Returns: A JSONSchema object representing the schema
+    public func generateSchema<T: Codable>(for object: T) -> JSONSchema {
+        // Create a base schema with the configuration values
+        var schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
+        
+        // Create dictionaries to store properties and required fields
+        var properties: [String: JSONSchema] = [:]
+        var required: [String] = []
+        
+        // Use Mirror to reflect on the object's properties
+        let mirror = Mirror(reflecting: object)
+        
+        // Process each child in the mirror
+        for child in mirror.children {
+            // Skip if the property has no label
+            guard let propertyName = child.label else { continue }
+            
+            // Clean the property name (remove underscore prefix for property wrappers)
+            let cleanPropertyName = cleanPropertyName(propertyName)
+            
+            // Generate schema for this property
+            let propertySchema = generateSchemaForProperty(child.value)
+            properties[cleanPropertyName] = propertySchema
+            
+            // Add to required fields (we'll handle optionals later)
+            required.append(cleanPropertyName)
+        }
+        
+        // Add properties and required fields to the schema
+        schema.properties = properties
+        schema.required = required
+        
+        return schema
+    }
+    
+    /// Generate a JSON Schema for the given Codable type
+    /// - Parameters:
+    ///   - type: The type to generate a schema for
+    /// - Returns: A JSONSchema object representing the schema
+    public func generateSchema<T: ProducesJSONSchema>(for type: T.Type) -> JSONSchema {
+        // This is just a stub that will be implemented later
+        let instance = T.exampleValue
+        return generateSchema(for: instance)
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Cleans a property name by removing any leading underscore
+    /// - Parameter propertyName: The raw property name
+    /// - Returns: The cleaned property name
+    private func cleanPropertyName(_ propertyName: String) -> String {
+        return propertyName.hasPrefix("_") ? String(propertyName.dropFirst()) : propertyName
+    }
+    
+
+    
+    /// Generate a JSON Schema for a property value
+    /// - Parameter value: The property value to generate a schema for
+    /// - Returns: A JSONSchema object representing the property
+    private func generateSchemaForProperty(_ value: Any) -> JSONSchema {
+        // Handle basic primitive types
+        switch value {
+        case is String:
+            return JSONSchema(type: .string)
+            
+        case is Int, is Int8, is Int16, is Int32, is Int64, is UInt, is UInt8, is UInt16, is UInt32, is UInt64:
+            return JSONSchema(type: .integer)
+            
+        case is Float, is Double, is Decimal:
+            return JSONSchema(type: .number)
+            
+        case is Bool:
+            return JSONSchema(type: .boolean)
+            
+        // Handle arrays
+        case let array as [Any]:
+            // If the array is empty, we can't determine the item type
+            guard let firstItem = array.first else {
+                return JSONSchema(type: .array)
+            }
+            
+            // Generate schema for the first item to determine array item type
+            let itemSchema = generateSchemaForProperty(firstItem)
+            return JSONSchema(type: .array, items: itemSchema)
+            
+        default:
+            // For complex types, return an object type as a placeholder
+            // Later we'll implement proper handling for nested objects
+            return JSONSchema(type: .object)
+        }
+    }
+}
