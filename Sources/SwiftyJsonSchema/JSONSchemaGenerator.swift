@@ -61,17 +61,19 @@ public class JSONSchemaGenerator {
             // Skip if the property has no label
             guard let propertyName = child.label else { continue }
             
-            guard let value = child.value as? Codable else { throw JSONSchemaGenerationError.notACodableType("\(child.value.self)") }
-            
             // Clean the property name (remove underscore prefix for property wrappers)
             let cleanPropertyName = cleanPropertyName(propertyName)
             
-            // Generate schema for this property
-            let propertySchema = generateSchemaForProperty(child.value)
-            properties[cleanPropertyName] = propertySchema
-            
-            // Add to required fields (we'll handle optionals later)
-            required.append(cleanPropertyName)
+            if isOptional(child.value) {
+                let propertySchema = generateSchemaForProperty(child.value)
+                properties[cleanPropertyName] = propertySchema
+            }
+            else {
+                // Generate schema for this property
+                let propertySchema = generateSchemaForProperty(child.value)
+                properties[cleanPropertyName] = propertySchema
+                required.append(cleanPropertyName)
+            }
         }
         
         // Add properties and required fields to the schema
@@ -100,7 +102,12 @@ public class JSONSchemaGenerator {
         return propertyName.hasPrefix("_") ? String(propertyName.dropFirst()) : propertyName
     }
     
-
+    /// Determines if a value is an Optional type
+    /// - Parameter value: The value to check
+    /// - Returns: True if the value is an Optional, false otherwise
+    private func isOptional(_ value: Any) -> Bool {
+        return Mirror(reflecting: value).displayStyle == .optional
+    }
     
     /// Generate a JSON Schema for a property value
     /// - Parameter value: The property value to generate a schema for
