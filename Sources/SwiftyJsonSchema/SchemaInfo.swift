@@ -12,6 +12,21 @@ protocol SchemaInfoProtocol: Sendable {
     var subjectValue: Any? { get }
 }
 
+protocol IgnorableField {}
+
+@propertyWrapper
+public struct IgnoreFieldInSchema<Value>: IgnorableField {
+    public var wrappedValue: Value
+    
+    public init(wrappedValue: Value) {
+        self.wrappedValue = wrappedValue
+    }
+}
+
+// Indicates that the schema allows additional properties
+public protocol DynamicSchema {}
+
+
 @propertyWrapper
 public struct OptionalSchemaInfo<T: Codable>: Codable, SchemaInfoProtocol {
 

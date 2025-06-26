@@ -18,7 +18,6 @@ public enum JSONSchemaType: String, Sendable, Codable {
     case null
 }
 
-
 /// Used when you need to reference a JSONSchema but you can't directly reference yourself in a struct in Swift
 public final class PassthroughContainer: Codable, Sendable {
     let items: JSONSchema?
