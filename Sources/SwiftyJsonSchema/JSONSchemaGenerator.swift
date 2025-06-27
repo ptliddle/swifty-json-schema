@@ -67,26 +67,19 @@ public class JSONSchemaGenerator {
         }
         
         if !basicEnums.isEmpty {
-            
-           // Create the basic enums schema
-            
             // There are 2 types of basic enums those that are `default` and RawRepresentables. Defaults are always strings in jsonschema
             var schemaType: JSONSchemaType = try {
                 
                 if let rawEnumObject = enumObject as? (RawRepresentable & Codable) {
                     let type = type(of: rawEnumObject)
                     let rawTypeString = getRawValueType(for: type)
-//                    let jsonType = JSONSchemaType(rawValue: rawTypeString.lowercased())
                     let jsonType = try JSONSchemaType(withRawEnumType: rawTypeString)
                     return jsonType
                 }
                 else {
-//                    print(rawEnum)
                     return .string
                 }
             }()
-            
-            
                 
             let caseLabels = E.allCases.compactMap({ enumObject in
                 if let rawEnumObject = enumObject as? (any RawRepresentable & Codable) {
@@ -94,9 +87,6 @@ public class JSONSchemaGenerator {
                 }
                 return nil
             })
-            
-            //E.allCases.map { "\($0.self)" }
-            
             
             schema.enumValues = caseLabels
             schema.type = schemaType
@@ -110,9 +100,6 @@ public class JSONSchemaGenerator {
                 var props = [String: JSONSchema]()
                 var required = [String]()
                 var schema = try _generateSchema(for: caseValue)
-                
-//                Self._createJSONSchemaNoEnums(for: caseValue, id: id, schema: schema,
-//                                                               propertyDescriptions: propertyDescriptions, properties: &props, required: &required)
                 schema.id = label
                 return schema
             }
@@ -147,23 +134,7 @@ public class JSONSchemaGenerator {
         // Use Mirror to reflect on the object's properties
         let mirror = Mirror(reflecting: object)
         
-//        // Let's handle special types
-//        switch mirror.displayStyle {
-//        case .enum:
-//            guard let enumObject = object as? (any CaseIterable & Codable) else {
-//                switch object {
-//                case is Codable:
-//                    throw JSONSchemaGenerationError.notCaseIterableEnum("\(object.self)")
-//                case is CaseIterable:
-//                    throw JSONSchemaGenerationError.notACodableType("\(object.self)")
-//                }
-//            }
-//         
-//            let jsonSchema = try handleEnums(enumObject: enumObject)
-//            properties["\(T.self)"] = jsonSchema
-//        default:
-            try handleChildren()
-//        }
+        try handleChildren()
         
         func handleChildren() throws {
             // Process each child in the mirror
