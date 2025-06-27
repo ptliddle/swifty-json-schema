@@ -1,5 +1,5 @@
 //
-//  JSONSchemaBasicTypeTests.swift.swift
+//  JSONSchemaPrimitiveSwiftTypeTests.swift
 //  SwiftyJsonSchema
 //
 //  Created by Peter Liddle on 6/27/25.
@@ -10,7 +10,7 @@ import Foundation
 @testable import SwiftyJsonSchema
 
 
-final class JSONSchemaBasicTypeTests: XCTestCase {
+final class JSONSchemaPrimitiveSwiftTypeTests: XCTestCase {
     
     // MARK: - String Tests
     

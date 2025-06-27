@@ -1,5 +1,5 @@
 //
-//  JSONSchemaFoundationTypeTests.swift
+//  JSONSchemaSpecialFoundationTypeTests.swift
 //  SwiftyJsonSchema
 //
 //  Created on 6/27/25.
@@ -9,7 +9,7 @@ import XCTest
 import Foundation
 @testable import SwiftyJsonSchema
 
-final class JSONSchemaFoundationTypeTests: XCTestCase {
+final class JSONSchemaSpecialFoundationTypeTests: XCTestCase {
     
     // MARK: - URL Tests
     
