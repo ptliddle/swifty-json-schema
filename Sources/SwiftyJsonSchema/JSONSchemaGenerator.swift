@@ -12,6 +12,9 @@ enum JSONSchemaGenerationError: Error {
     case notCaseIterableEnum(String)
     case notCaseIterableOrCodable(String)
     case noEnumCases
+    case unknownBaseType
+    case invalidCollection(String)
+    case invalidOptional(String)
 }
 
 
@@ -133,9 +136,7 @@ public class JSONSchemaGenerator {
         return try _generateSchema(for: object, schema: schema)
     }
      
-    private func _generateSchema<T>(for object: T, schema: JSONSchema = JSONSchema(type: .object)) throws -> JSONSchema where T: Any {
-        
-        var schema = schema
+    private func _generateSchema<T>(for object: T, schema: JSONSchema? = nil) throws -> JSONSchema where T: Any {
         
         // Create dictionaries to store properties and required fields
         var properties: [String: JSONSchema] = [:]
@@ -144,6 +145,61 @@ public class JSONSchemaGenerator {
         // Use Mirror to reflect on the object's properties
         let mirror = Mirror(reflecting: object)
         
+        // First we check if we're at the base, i.e. a basic type. It should have no children
+        // Dictionaries and Arrays are considered base types
+        guard !mirror.children.isEmpty else {
+            return try generateSchemaForBaseTypes(object)
+        }
+        
+        var parentOptional = false
+        
+        // Now handle complex base types, i.e. enum, dictionary and array
+        if let displayStyle =  mirror.displayStyle {
+            switch displayStyle {
+            case .struct, .class:
+                break // struct and class can just be handled normally by parsing their chilren recursively
+            case .enum, .tuple, .dictionary, .set:
+                print("SPECIAL TYPE NOT YET HANDLED")
+            case .optional:
+                print("HANDLE OPTIONAL")
+                parentOptional = true
+                // Optionals are handled as a base type
+//                guard let opt = object as Optional<Any> else {
+//                    throw JSONSchemaGenerationError.invalidOptional("\(type(of:object))")
+//                }
+                break
+   
+            case .collection:
+                guard let array = object as? [Any] else {
+                    throw JSONSchemaGenerationError.invalidCollection("\(type(of:object))")
+                }
+                
+                // For array we need to get a collection element and recurse on it
+                // If the array is empty, we can't determine the item type
+                if array.isEmpty {
+                    return JSONSchema(type: .array)
+                }
+                
+                // Get the first item to determine array item type
+                guard let firstItem = array.first else {
+                    return JSONSchema(type: .array)
+                }
+                
+                // Check that the item is Codable
+                guard let arrayItem = firstItem as? Codable else {
+                    throw JSONSchemaGenerationError.notACodableType("\(type(of:firstItem.self))")
+                }
+                
+                // Generate schema for the item
+                let itemSchema = try _generateSchema(for: arrayItem) //try generateSchemaForProperty(arrayItem)
+                return JSONSchema(type: .array, items: itemSchema)
+            }
+        }
+        
+
+        var schema = schema ?? JSONSchema(type: .object) // ?? generateSchemaForProperty(object)
+        
+        // Handle each of the types children
         try handleChildren()
         
         func handleChildren() throws {
@@ -161,7 +217,7 @@ public class JSONSchemaGenerator {
 //                }
               
                 if isOptional(child.value) {
-                    let propertySchema = try generateSchemaForProperty(value)
+                    let propertySchema = try generateSchemaForBaseTypes(value)
                     properties[cleanPropertyName] = propertySchema
                 }
                 else if isEnum(child.value){
@@ -173,9 +229,11 @@ public class JSONSchemaGenerator {
                 }
                 else {
                     // Generate schema for this property
-                    let propertySchema = try generateSchemaForProperty(value)
+                    let propertySchema = try _generateSchema(for: value)
                     properties[cleanPropertyName] = propertySchema
-                    required.append(cleanPropertyName)
+                    if !parentOptional {
+                        required.append(cleanPropertyName)
+                    }
                 }
             }
             
@@ -230,24 +288,30 @@ public class JSONSchemaGenerator {
         return Mirror(reflecting: value).displayStyle == .enum
     }
     
+   
+//    private func handleComplesBaseTypes<T>(_ value: T) throws -> JSONSchema where T: Any {
+//        // Handle complex base types like array, dictionary and optional
+//        
+//    }
+//    
     
     /// Generate a JSON Schema for a property value
     /// - Parameter value: The property value to generate a schema for
     /// - Returns: A JSONSchema object representing the property
-    private func generateSchemaForProperty<T>(_ value: T) throws -> JSONSchema where T: Any {
+    private func generateSchemaForBaseTypes<T>(_ value: T) throws -> JSONSchema where T: Any {
         // Handle optionals by unwrapping and recursing
-        if isOptional(value) {
-            let mirror = Mirror(reflecting: value)
-            if let firstChild = mirror.children.first {
-                guard let value = firstChild.value as? Codable else {
-                    throw JSONSchemaGenerationError.notACodableType("\(type(of: firstChild))")
-                }
-                return try generateSchemaForProperty(value)
-            } else {
-                // For nil optionals, return a placeholder schema
-                return JSONSchema(type: .object)
-            }
-        }
+//        if isOptional(value) {
+//            let mirror = Mirror(reflecting: value)
+//            if let firstChild = mirror.children.first {
+//                guard let value = firstChild.value as? Codable else {
+//                    throw JSONSchemaGenerationError.notACodableType("\(type(of: firstChild))")
+//                }
+//                return try generateSchemaForBaseTypes(value)
+//            } else {
+//                // For nil optionals, return a placeholder schema
+//                return JSONSchema(type: .object)
+//            }
+//        }
         
         // Handle basic primitive types
         switch value {
@@ -274,26 +338,32 @@ public class JSONSchemaGenerator {
             schema.format = "date-time"
             return schema
             
-        // Handle arrays
-        case let array as [Any]:
-            // If the array is empty, we can't determine the item type
-            if array.isEmpty {
-                return JSONSchema(type: .array)
+        case let optValue as Optional<Any>:
+            guard let realValue = optValue else {
+                return JSONSchema(type: .null)
             }
+            return try _generateSchema(for: realValue)
             
-            // Get the first item to determine array item type
-            guard let firstItem = array.first else {
-                return JSONSchema(type: .array)
-            }
-            
-            // Check that the item is Codable
-            guard let arrayItem = firstItem as? Codable else {
-                throw JSONSchemaGenerationError.notACodableType("\(type(of:firstItem.self))")
-            }
-            
-            // Generate schema for the item
-            let itemSchema = try generateSchemaForProperty(arrayItem)
-            return JSONSchema(type: .array, items: itemSchema)
+//         Handle arrays
+//        case let array as [Any]:
+//            // If the array is empty, we can't determine the item type
+//            if array.isEmpty {
+//                return JSONSchema(type: .array)
+//            }
+//            
+//            // Get the first item to determine array item type
+//            guard let firstItem = array.first else {
+//                return JSONSchema(type: .array)
+//            }
+//            
+//            // Check that the item is Codable
+//            guard let arrayItem = firstItem as? Codable else {
+//                throw JSONSchemaGenerationError.notACodableType("\(type(of:firstItem.self))")
+//            }
+//            
+//            // Generate schema for the item
+//            let itemSchema = try _generateSchema(for: arrayItem) //try generateSchemaForProperty(arrayItem)
+//            return JSONSchema(type: .array, items: itemSchema)
             
         // Handle dictionaries
         case let dict as [String: Any]:
@@ -319,7 +389,7 @@ public class JSONSchemaGenerator {
                 }
                 
                 // Generate schema for the value
-                let valueSchema = try generateSchemaForProperty(dictValue)
+                let valueSchema = try generateSchemaForBaseTypes(dictValue)
                 properties[key] = valueSchema
             }
             
@@ -327,8 +397,9 @@ public class JSONSchemaGenerator {
             return schema
             
         default:
+            throw JSONSchemaGenerationError.unknownBaseType
             // For complex types (like nested Codable objects), use Mirror to generate a schema
-            return try _generateSchema(for: value)
+//            return try _generateSchema(for: value)
         }
     }
 }
