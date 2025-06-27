@@ -26,7 +26,11 @@ final class JSONSchemaEnumTests: XCTestCase {
     }
     
     // Enum with associated values
-    enum ContentType: Codable {
+    enum ContentType: Codable, CaseIterable {
+        static var allCases: [Self] = [.text("Test Text"),
+                                       .image(url: "http://example.com/image1.png", width: 120, height: 200),
+                                       .video(url: "http://example.com/video1.mp4", duration: 576)]
+        
         case text(String)
         case image(url: String, width: Int, height: Int)
         case video(url: String, duration: Double)
@@ -164,12 +168,76 @@ final class JSONSchemaEnumTests: XCTestCase {
         XCTAssertEqual(Set(outputEnumValues), Set(expectedEnumValues))
     }
     
+
+    func testContentTypeEnumSchemaGeneration() throws {
+        let generator = JSONSchemaGenerator()
+        
+        // Generate schema for the ContentType enum directly
+        let contentTypeSchema = try generator.generateSchema(for: ContentType.text("Sample text"))
+        
+        // Verify the base schema properties
+        XCTAssertEqual(contentTypeSchema.type, .object)
+        XCTAssertNotNil(contentTypeSchema.oneOf, "Schema should use oneOf for enum with associated values")
+        XCTAssertGreaterThanOrEqual(contentTypeSchema.oneOf?.count ?? 0, 3, "Schema should have at least 3 oneOf schemas for the 3 enum cases")
+        
+        // Find the schema for the text case
+        let textSchema = contentTypeSchema.oneOf?.first { schema in
+            let typeValue = schema.properties?["type"]?.enumValues?.first?.stringValue
+            return typeValue == "text"
+        }
+        XCTAssertNotNil(textSchema, "Schema should include a case for text")
+        
+        // Verify text schema properties
+        XCTAssertEqual(textSchema?.type, .object)
+        XCTAssertNotNil(textSchema?.properties?["type"], "Text schema should have a type discriminator property")
+        XCTAssertEqual(textSchema?.properties?["type"]?.type, .string)
+        XCTAssertEqual(textSchema?.properties?["type"]?.enumValues?.first?.stringValue, "text")
+        XCTAssertNotNil(textSchema?.properties?["value"], "Text schema should have a value property")
+        XCTAssertEqual(textSchema?.properties?["value"]?.type, .string)
+        
+        // Find the schema for the image case
+        let imageSchema = contentTypeSchema.oneOf?.first { schema in
+            let typeValue = schema.properties?["type"]?.enumValues?.first?.stringValue
+            return typeValue == "image"
+        }
+        XCTAssertNotNil(imageSchema, "Schema should include a case for image")
+        
+        // Verify image schema properties
+        XCTAssertEqual(imageSchema?.type, .object)
+        XCTAssertNotNil(imageSchema?.properties?["type"], "Image schema should have a type discriminator property")
+        XCTAssertEqual(imageSchema?.properties?["type"]?.type, .string)
+        XCTAssertEqual(imageSchema?.properties?["type"]?.enumValues?.first?.stringValue, "image")
+        XCTAssertNotNil(imageSchema?.properties?["url"], "Image schema should have a url property")
+        XCTAssertEqual(imageSchema?.properties?["url"]?.type, .string)
+        XCTAssertNotNil(imageSchema?.properties?["width"], "Image schema should have a width property")
+        XCTAssertEqual(imageSchema?.properties?["width"]?.type, .integer)
+        XCTAssertNotNil(imageSchema?.properties?["height"], "Image schema should have a height property")
+        XCTAssertEqual(imageSchema?.properties?["height"]?.type, .integer)
+        
+        // Find the schema for the video case
+        let videoSchema = contentTypeSchema.oneOf?.first { schema in
+            let typeValue = schema.properties?["type"]?.enumValues?.first?.stringValue
+            return typeValue == "video"
+        }
+        XCTAssertNotNil(videoSchema, "Schema should include a case for video")
+        
+        // Verify video schema properties
+        XCTAssertEqual(videoSchema?.type, .object)
+        XCTAssertNotNil(videoSchema?.properties?["type"], "Video schema should have a type discriminator property")
+        XCTAssertEqual(videoSchema?.properties?["type"]?.type, .string)
+        XCTAssertEqual(videoSchema?.properties?["type"]?.enumValues?.first?.stringValue, "video")
+        XCTAssertNotNil(videoSchema?.properties?["url"], "Video schema should have a url property")
+        XCTAssertEqual(videoSchema?.properties?["url"]?.type, .string)
+        XCTAssertNotNil(videoSchema?.properties?["duration"], "Video schema should have a duration property")
+        XCTAssertEqual(videoSchema?.properties?["duration"]?.type, .number)
+    }
+    
     func testComplexEnumSchemaGeneration() throws {
         // Create an instance of our generator
         let generator = JSONSchemaGenerator()
         
         // Create test items with different content types
-        let textItem = ContentItem(
+        let textItem = ContentItem (
             id: "item-1",
             role: .editor,
             priority: .medium,

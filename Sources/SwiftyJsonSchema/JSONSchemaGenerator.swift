@@ -11,6 +11,7 @@ enum JSONSchemaGenerationError: Error {
     case notACodableType(String)
     case notCaseIterableEnum(String)
     case notCaseIterableOrCodable(String)
+    case noEnumCases
 }
 
 
@@ -84,8 +85,11 @@ public class JSONSchemaGenerator {
             let caseLabels = E.allCases.compactMap({ enumObject in
                 if let rawEnumObject = enumObject as? (any RawRepresentable & Codable) {
                     return Value(from: rawEnumObject.rawValue as? Codable)
+                } 
+                else {
+                    // For non-RawRepresentable enums, use the string representation
+                    return Value.string("\(enumObject)")
                 }
-                return nil
             })
             
             schema.enumValues = caseLabels
@@ -99,7 +103,8 @@ public class JSONSchemaGenerator {
                 
                 var props = [String: JSONSchema]()
                 var required = [String]()
-                var schema = try _generateSchema(for: caseValue)
+                var schema = try generateSchema(for: caseValue)
+                
                 schema.id = label
                 return schema
             }
@@ -107,7 +112,6 @@ public class JSONSchemaGenerator {
             schema.type = .object
             schema.oneOf = allSchemas
         }
-        
         
         return schema
     }
@@ -117,13 +121,19 @@ public class JSONSchemaGenerator {
     /// - Parameters:
     ///   - object: The object to generate a schema for
     /// - Returns: A JSONSchema object representing the schema
-    public func generateSchema<T: Codable>(for object: T) throws -> JSONSchema {
+    public func generateSchema<T>(for object: T) throws -> JSONSchema where T: Codable {
+        // Create a base schema with the configuration values
+        let schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
+        return try _generateSchema(for: object, schema: schema)
+    }
+    
+    public func generateSchema<T>(for object: T) throws -> JSONSchema where T: CaseIterable {
         // Create a base schema with the configuration values
         let schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
         return try _generateSchema(for: object, schema: schema)
     }
      
-    private func _generateSchema<T: Codable>(for object: T, schema: JSONSchema = JSONSchema(type: .object)) throws -> JSONSchema {
+    private func _generateSchema<T>(for object: T, schema: JSONSchema = JSONSchema(type: .object)) throws -> JSONSchema where T: Any {
         
         var schema = schema
         
@@ -145,10 +155,11 @@ public class JSONSchemaGenerator {
                 // Clean the property name (remove underscore prefix for property wrappers)
                 let cleanPropertyName = cleanPropertyName(propertyName)
                 
-                guard let value = child.value as? Codable else {
-                    throw JSONSchemaGenerationError.notACodableType("\(child.value.self)")
-                }
-                
+                let value = child.value
+//                guard let value = child.value as? Codable else {
+//                    throw JSONSchemaGenerationError.notACodableType("\(type(of: child.value))")
+//                }
+              
                 if isOptional(child.value) {
                     let propertySchema = try generateSchemaForProperty(value)
                     properties[cleanPropertyName] = propertySchema
@@ -181,9 +192,21 @@ public class JSONSchemaGenerator {
     ///   - type: The type to generate a schema for
     /// - Returns: A JSONSchema object representing the schema
     public func generateSchema<T: ProducesJSONSchema>(for type: T.Type) throws -> JSONSchema {
-        // This is just a stub that will be implemented later
         let instance = T.exampleValue
-        return try generateSchema(for: instance)
+        return try _generateSchema(for: instance)
+    }
+    
+    public func generateSchema<T: CaseIterable>(for type: T.Type) throws -> JSONSchema {
+        
+        var schema = JSONSchema()
+        
+        let subSchemas = try T.allCases.map { enumdCase in
+            try _generateSchema(for: enumdCase)
+        }
+        
+        schema.type = .object
+        schema.oneOf = subSchemas
+        return schema
     }
     
     // MARK: - Private Methods
@@ -211,13 +234,13 @@ public class JSONSchemaGenerator {
     /// Generate a JSON Schema for a property value
     /// - Parameter value: The property value to generate a schema for
     /// - Returns: A JSONSchema object representing the property
-    private func generateSchemaForProperty<T>(_ value: T) throws -> JSONSchema where T: Codable {
+    private func generateSchemaForProperty<T>(_ value: T) throws -> JSONSchema where T: Any {
         // Handle optionals by unwrapping and recursing
         if isOptional(value) {
             let mirror = Mirror(reflecting: value)
             if let firstChild = mirror.children.first {
                 guard let value = firstChild.value as? Codable else {
-                    throw JSONSchemaGenerationError.notACodableType("\(firstChild.self)")
+                    throw JSONSchemaGenerationError.notACodableType("\(type(of: firstChild))")
                 }
                 return try generateSchemaForProperty(value)
             } else {
@@ -265,7 +288,7 @@ public class JSONSchemaGenerator {
             
             // Check that the item is Codable
             guard let arrayItem = firstItem as? Codable else {
-                throw JSONSchemaGenerationError.notACodableType("\(firstItem.self)")
+                throw JSONSchemaGenerationError.notACodableType("\(type(of:firstItem.self))")
             }
             
             // Generate schema for the item
@@ -292,7 +315,7 @@ public class JSONSchemaGenerator {
             for (key, value) in dict {
                 // Check that the value is Codable
                 guard let dictValue = value as? Codable else {
-                    throw JSONSchemaGenerationError.notACodableType("\(value.self)")
+                    throw JSONSchemaGenerationError.notACodableType("\(type(of: value))")
                 }
                 
                 // Generate schema for the value
@@ -305,7 +328,7 @@ public class JSONSchemaGenerator {
             
         default:
             // For complex types (like nested Codable objects), use Mirror to generate a schema
-            return try generateSchema(for: value)
+            return try _generateSchema(for: value)
         }
     }
 }
