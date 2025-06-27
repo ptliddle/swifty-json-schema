@@ -327,15 +327,25 @@ public class JSONSchemaGenerator {
         case is Bool:
             return JSONSchema(type: .boolean)
             
-        // Handle Foundation types
-        case _ as URL:
+        // Foundation types with special handling
+        case let url as URL:
             var schema = JSONSchema(type: .string)
             schema.format = "uri"
             return schema
             
-        case _ as Date:
+        case let uuid as UUID:
+            var schema = JSONSchema(type: .string)
+            schema.format = "uuid"
+            return schema
+            
+        case let date as Date:
             var schema = JSONSchema(type: .string)
             schema.format = "date-time"
+            return schema
+            
+        case let data as Data:
+            var schema = JSONSchema(type: .string)
+            schema.contentEncoding = "base64"
             return schema
             
         case let optValue as Optional<Any>:
