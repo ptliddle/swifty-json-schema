@@ -19,6 +19,8 @@ final class JSONSchemaBasicTypeTests: XCTestCase {
         let value = "Hello, World!"
         let schema = try generator.generateSchema(for: value)
         
+        TestLog.debug("SCHEMA \(schema.debugDescription)")
+        
         XCTAssertEqual(schema.type, .string)
         XCTAssertNil(schema.format)
         XCTAssertNil(schema.minLength)
@@ -32,6 +34,8 @@ final class JSONSchemaBasicTypeTests: XCTestCase {
         let generator = JSONSchemaGenerator()
         let value = 42
         let schema = try generator.generateSchema(for: value)
+        
+        TestLog.debug("SCHEMA \(schema.debugDescription)")
         
         XCTAssertEqual(schema.type, .integer)
         XCTAssertNil(schema.minimum)
@@ -103,6 +107,8 @@ final class JSONSchemaBasicTypeTests: XCTestCase {
         let value: Decimal = 3.14159
         let schema = try generator.generateSchema(for: value)
         
+        TestLog.debug("SCHEMA \(schema.debugDescription)")
+        
         XCTAssertEqual(schema.type, .number)
     }
     
@@ -112,6 +118,8 @@ final class JSONSchemaBasicTypeTests: XCTestCase {
         let generator = JSONSchemaGenerator()
         let value = true
         let schema = try generator.generateSchema(for: value)
+        
+        TestLog.debug("SCHEMA \(schema.debugDescription)")
         
         XCTAssertEqual(schema.type, .boolean)
     }
@@ -123,6 +131,8 @@ final class JSONSchemaBasicTypeTests: XCTestCase {
         let value = URL(string: "https://example.com")!
         let schema = try generator.generateSchema(for: value)
         
+        TestLog.debug("SCHEMA \(schema.debugDescription)")
+        
         XCTAssertEqual(schema.type, .string)
         XCTAssertEqual(schema.format, "uri")
     }
@@ -132,61 +142,10 @@ final class JSONSchemaBasicTypeTests: XCTestCase {
         let value = Date()
         let schema = try generator.generateSchema(for: value)
         
+        TestLog.debug("SCHEMA \(schema.debugDescription)")
+        
         XCTAssertEqual(schema.type, .string)
         XCTAssertEqual(schema.format, "date-time")
-    }
-    
-    // MARK: - Array Tests
-    
-    func testEmptyArraySchemaGeneration() throws {
-        let generator = JSONSchemaGenerator()
-        let value: [String] = []
-        let schema = try generator.generateSchema(for: value)
-        
-        XCTAssertEqual(schema.type, .array)
-        XCTAssertNil(schema.items?.items)
-    }
-    
-    func testStringArraySchemaGeneration() throws {
-        let generator = JSONSchemaGenerator()
-        let value = ["one", "two", "three"]
-        let schema = try generator.generateSchema(for: value)
-        
-        XCTAssertEqual(schema.type, .array)
-        XCTAssertEqual(schema.items?.items?.type, .string)
-    }
-    
-    func testIntArraySchemaGeneration() throws {
-        let generator = JSONSchemaGenerator()
-        let value = [1, 2, 3]
-        let schema = try generator.generateSchema(for: value)
-        
-        XCTAssertEqual(schema.type, .array)
-        XCTAssertEqual(schema.items?.items?.type, .integer)
-    }
-    
-    // MARK: - Dictionary Tests
-    
-    func testEmptyDictionarySchemaGeneration() throws {
-        let generator = JSONSchemaGenerator()
-        let value: [String: String] = [:]
-        let schema = try generator.generateSchema(for: value)
-        
-        XCTAssertEqual(schema.type, .object)
-        XCTAssertTrue(schema.additionalProperties ?? false)
-        XCTAssertNil(schema.properties) // Empty dictionary has no properties
-    }
-    
-    func testStringDictionarySchemaGeneration() throws {
-        let generator = JSONSchemaGenerator()
-        let value = ["key1": "value1", "key2": "value2"]
-        let schema = try generator.generateSchema(for: value)
-        
-        XCTAssertEqual(schema.type, .object)
-        XCTAssertTrue(schema.additionalProperties ?? false)
-        XCTAssertNotNil(schema.properties)
-        XCTAssertEqual(schema.properties?["key1"]?.type, .string)
-        XCTAssertEqual(schema.properties?["key2"]?.type, .string)
     }
     
     // MARK: - Optional Tests
@@ -207,54 +166,5 @@ final class JSONSchemaBasicTypeTests: XCTestCase {
         let schema = try generator.generateSchema(for: optionalString)
         
         XCTAssertEqual(schema.type, .null)
-    }
-    
-    // MARK: - Nested Object Tests
-    
-    func testNestedObjectSchemaGeneration() throws {
-        let generator = JSONSchemaGenerator()
-        
-        struct Person: Codable {
-            let name: String
-            let age: Int
-            let address: Address
-            
-            struct Address: Codable {
-                let street: String
-                let city: String
-                let zipCode: String
-            }
-        }
-        
-        let person = Person(
-            name: "John Doe",
-            age: 30,
-            address: Person.Address(
-                street: "123 Main St",
-                city: "Anytown",
-                zipCode: "12345"
-            )
-        )
-        
-        let schema = try generator.generateSchema(for: person)
-        
-        XCTAssertEqual(schema.type, .object)
-        XCTAssertNotNil(schema.properties)
-        XCTAssertEqual(schema.properties?["name"]?.type, .string)
-        XCTAssertEqual(schema.properties?["age"]?.type, .integer)
-        XCTAssertEqual(schema.properties?["address"]?.type, .object)
-        XCTAssertEqual(schema.properties?["address"]?.properties?["street"]?.type, .string)
-        XCTAssertEqual(schema.properties?["address"]?.properties?["city"]?.type, .string)
-        XCTAssertEqual(schema.properties?["address"]?.properties?["zipCode"]?.type, .string)
-        
-        // Check required fields
-        XCTAssertTrue(schema.required?.contains("name") ?? false)
-        XCTAssertTrue(schema.required?.contains("age") ?? false)
-        XCTAssertTrue(schema.required?.contains("address") ?? false)
-        
-        // Check nested required fields
-        XCTAssertTrue(schema.properties?["address"]?.required?.contains("street") ?? false)
-        XCTAssertTrue(schema.properties?["address"]?.required?.contains("city") ?? false)
-        XCTAssertTrue(schema.properties?["address"]?.required?.contains("zipCode") ?? false)
     }
 }

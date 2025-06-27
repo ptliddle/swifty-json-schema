@@ -18,8 +18,8 @@ final class JSONSchemaFoundationTypeTests: XCTestCase {
         let value = URL(string: "https://example.com")!
         let schema = try generator.generateSchema(for: value)
         
-        XCTAssertEqual(schema.type, .string)
-        XCTAssertEqual(schema.format, "uri")
+        XCTAssertEqual(schema.type!, .string)
+        XCTAssertEqual(schema.format!, "uri")
     }
     
     // MARK: - UUID Tests

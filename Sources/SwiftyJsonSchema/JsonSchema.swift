@@ -77,6 +77,9 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
     var pattern: String?
     var additionalProperties: Bool?
     
+    var contentEncoding: String?
+    var contentMediaType: String?
+    
     // Used for unions
     var anyOf: [JSONSchema]?
     var oneOf: [JSONSchema]?
