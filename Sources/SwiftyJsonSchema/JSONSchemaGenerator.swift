@@ -142,26 +142,43 @@ public class JSONSchemaGenerator {
         var properties: [String: JSONSchema] = [:]
         var required: [String] = []
         
-        // First things first, check if it's a primitive type and we can handle based on the information we already have without needing reflection
-        if let schema = try generateSchemaForBaseTypes(object) {
+        // Use Mirror to reflect on the object's properties
+        let mirror = Mirror(reflecting: object)
+        let typeHint = mirror.displayStyle
+        
+        // Handle decorated types first
+        var object = object
+        if let metadataSchema = object as? JSONSchemaMetadataProtocol {
+            let description = metadataSchema.description
+            print("handle metadata by adding desc: \(description)")
+        }
+        
+        // First things first, check if it's a primitive type and we can handle based on the information we already have without needing reflection and return schema
+        if let schema = try generateSchemaForBaseTypes(object, typeHint: typeHint) {
             return schema // We have a base type so return it
         }
         
+        //MARK: - Advanced types
+        // When we get here we're dealing with complex types, either structs, classes, etc or special types like enums or Decorated types
         
         
-        // Use Mirror to reflect on the object's properties
-        let mirror = Mirror(reflecting: object)
+
+        
+        // Let's first deal with special types like enums
+//        mirror
+        
+
         
         // First we check if we're at the base, i.e. a basic type. It should have no children
         // Dictionaries and Arrays are considered base types
         guard !mirror.children.isEmpty else {
-            return try generateSchemaForBaseTypes(object)!
+            return try generateSchemaForBaseTypes(object, typeHint: nil)!
         }
         
         var parentOptional = false
         
         // Now handle complex base types, i.e. enum, dictionary and array
-        if let displayStyle =  mirror.displayStyle {
+        if let displayStyle = mirror.displayStyle {
             switch displayStyle {
             case .struct, .class:
                 break // struct and class can just be handled normally by parsing their chilren recursively
@@ -170,10 +187,6 @@ public class JSONSchemaGenerator {
             case .optional:
                 print("HANDLE OPTIONAL")
                 parentOptional = true
-                // Optionals are handled as a base type
-//                guard let opt = object as Optional<Any> else {
-//                    throw JSONSchemaGenerationError.invalidOptional("\(type(of:object))")
-//                }
                 break
    
             case .collection:
@@ -219,12 +232,9 @@ public class JSONSchemaGenerator {
                 let cleanPropertyName = cleanPropertyName(propertyName)
                 
                 let value = child.value
-//                guard let value = child.value as? Codable else {
-//                    throw JSONSchemaGenerationError.notACodableType("\(type(of: child.value))")
-//                }
               
                 if isOptional(child.value) {
-                    let propertySchema = try generateSchemaForBaseTypes(value)
+                    let propertySchema = try generateSchemaForBaseTypes(value, typeHint: .optional)
                     properties[cleanPropertyName] = propertySchema
                 }
                 else if isEnum(child.value){
@@ -305,7 +315,7 @@ public class JSONSchemaGenerator {
     /// Generate a JSON Schema for a property value
     /// - Parameter value: The property value to generate a schema for
     /// - Returns: A JSONSchema object representing the property
-    private func generateSchemaForBaseTypes<T>(_ value: T) throws -> JSONSchema? where T: Any {
+    private func generateSchemaForBaseTypes<T>(_ value: T, typeHint: Mirror.DisplayStyle?) throws -> JSONSchema? where T: Any {
         // Handle optionals by unwrapping and recursing
 //        if isOptional(value) {
 //            let mirror = Mirror(reflecting: value)
@@ -355,12 +365,6 @@ public class JSONSchemaGenerator {
             schema.contentEncoding = "base64"
             return schema
             
-        case let optValue as Optional<Any>:
-            guard let realValue = optValue else {
-                return JSONSchema(type: .null)
-            }
-            return try generateSchemaForBaseTypes(realValue)
-            
         // Handle arrays (even empty ones)
         case let array as [Any]:
             var schema = JSONSchema(type: .array)
@@ -383,6 +387,14 @@ public class JSONSchemaGenerator {
                 schema.properties = properties
             }
             return schema
+            
+        // Put this last as some types like [Any] can get seen as Optional<Any>.
+        // Although the hints from mirror largely help with this
+        case let optValue as Optional<Any> where typeHint == .optional:
+            guard let realValue = optValue else {
+                return JSONSchema(type: .null)
+            }
+            return try generateSchemaForBaseTypes(realValue, typeHint: typeHint)
             
         default:
             // If it's not a Foundation or Primitive Swift type return nil
