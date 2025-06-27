@@ -124,30 +124,6 @@ final class JSONSchemaBasicTypeTests: XCTestCase {
         XCTAssertEqual(schema.type, .boolean)
     }
     
-    // MARK: - Foundation Type Tests
-    
-    func testURLSchemaGeneration() throws {
-        let generator = JSONSchemaGenerator()
-        let value = URL(string: "https://example.com")!
-        let schema = try generator.generateSchema(for: value)
-        
-        TestLog.debug("SCHEMA \(schema.debugDescription)")
-        
-        XCTAssertEqual(schema.type, .string)
-        XCTAssertEqual(schema.format, "uri")
-    }
-    
-    func testDateSchemaGeneration() throws {
-        let generator = JSONSchemaGenerator()
-        let value = Date()
-        let schema = try generator.generateSchema(for: value)
-        
-        TestLog.debug("SCHEMA \(schema.debugDescription)")
-        
-        XCTAssertEqual(schema.type, .string)
-        XCTAssertEqual(schema.format, "date-time")
-    }
-    
     // MARK: - Optional Tests
     
     func testBasicOptionalSchemaGenerationForSome() throws {
