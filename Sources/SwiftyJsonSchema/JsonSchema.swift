@@ -18,6 +18,28 @@ public enum JSONSchemaType: String, Sendable, Codable {
     case null
 }
 
+extension JSONSchemaType {
+    init(withRawEnumType: String) throws {
+        switch withRawEnumType {
+        case "Int", "Int8", "Int16", "Int32", "Int64",
+             "UInt", "UInt8", "UInt16", "UInt32", "UInt64":
+            self = .integer
+        case "Double", "Float":
+            self = .number
+        case "Bool":
+            self = .boolean
+        case "String", "Character":
+            self = .string
+        case "Array":
+            self = .array
+        case "Dictionary":
+            self = .object
+        default:
+            throw JSONSchemaError.unrecognizedType
+        }
+    }
+}
+
 /// Used when you need to reference a JSONSchema but you can't directly reference yourself in a struct in Swift
 public final class PassthroughContainer: Codable, Sendable {
     let items: JSONSchema?
@@ -46,7 +68,7 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
     var required: [String]?
     var items: PassthroughContainer?
     var description: String?
-    var enumValues: [String]?
+    var enumValues: [Value]?
     var format: String?
     var minimum: Double?
     var maximum: Double?
@@ -80,7 +102,7 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
         case oneOf
     }
     
-    public init(id: String? = nil, schema: String? = nil, title: String? = nil, type: JSONSchemaType? = nil, properties: [String : JSONSchema]? = nil, required: [String]? = nil, items: JSONSchema? = nil, description: String? = nil, enumValues: [String]? = nil, format: String? = nil, minimum: Double? = nil, maximum: Double? = nil, minLength: Int? = nil, maxLength: Int? = nil, pattern: String? = nil, additionalProperties: Bool? = nil, anyOf: [JSONSchema]? = nil, oneOf: [JSONSchema]? = nil) {
+    public init(id: String? = nil, schema: String? = nil, title: String? = nil, type: JSONSchemaType? = nil, properties: [String : JSONSchema]? = nil, required: [String]? = nil, items: JSONSchema? = nil, description: String? = nil, enumValues: [Value]? = nil, format: String? = nil, minimum: Double? = nil, maximum: Double? = nil, minLength: Int? = nil, maxLength: Int? = nil, pattern: String? = nil, additionalProperties: Bool? = nil, anyOf: [JSONSchema]? = nil, oneOf: [JSONSchema]? = nil) {
         self.id = id
         self.schema = schema
         self.title = title

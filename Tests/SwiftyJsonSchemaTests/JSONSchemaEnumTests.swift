@@ -159,8 +159,9 @@ final class JSONSchemaEnumTests: XCTestCase {
         XCTAssertEqual(prioritySchema.type, .integer)
         
         // The enum values should be the raw integer values
-        let expectedEnumValues = ["0", "1", "2", "3"]
-        XCTAssertEqual(Set(prioritySchema.enumValues ?? []), Set(expectedEnumValues))
+        let expectedEnumValues: [Int] = [0, 1, 2, 3]
+        let outputEnumValues: [Int] = (prioritySchema.enumValues ?? []).compactMap { $0.intValue ?? nil }
+        XCTAssertEqual(Set(outputEnumValues), Set(expectedEnumValues))
     }
     
     func testComplexEnumSchemaGeneration() throws {

@@ -13,27 +13,27 @@ enum JSONSchemaError: Error {
     case hasNoIterableCases(String)
 }
 
-extension JSONSchemaType {
-    init(withRawEnumType: String) throws {
-        switch withRawEnumType {
-        case "Int", "Int8", "Int16", "Int32", "Int64",
-             "UInt", "UInt8", "UInt16", "UInt32", "UInt64":
-            self = .integer
-        case "Double", "Float":
-            self = .number
-        case "Bool":
-            self = .boolean
-        case "String", "Character":
-            self = .string
-        case "Array":
-            self = .array
-        case "Dictionary":
-            self = .object
-        default:
-            throw JSONSchemaError.unrecognizedType
-        }
-    }
-}
+//extension JSONSchemaType {
+//    init(withRawEnumType: String) throws {
+//        switch withRawEnumType {
+//        case "Int", "Int8", "Int16", "Int32", "Int64",
+//             "UInt", "UInt8", "UInt16", "UInt32", "UInt64":
+//            self = .integer
+//        case "Double", "Float":
+//            self = .number
+//        case "Bool":
+//            self = .boolean
+//        case "String", "Character":
+//            self = .string
+//        case "Array":
+//            self = .array
+//        case "Dictionary":
+//            self = .object
+//        default:
+//            throw JSONSchemaError.unrecognizedType
+//        }
+//    }
+//}
 public class JsonSchemaCreator {
 
 #warning("Eat throws for now until we can fix SwiftyPrompts")
@@ -80,7 +80,7 @@ public class JsonSchemaCreator {
         }
         
         
-        let caseLabels: [String] = E.allCases.map { "\($0.self)" }
+        let caseLabels: [Value] = E.allCases.map { .string("\($0.self)") }
         let jsonSchema = JSONSchema(id: id, schema: schema, type: .string, enumValues: caseLabels)
         return jsonSchema
     }
@@ -132,7 +132,7 @@ public class JsonSchemaCreator {
             }()
             
             
-            let caseLabels: [String] = E.allCases.map { "\($0.self)" }
+            let caseLabels: [Value] = E.allCases.map { .string("\($0.self)") }
             fullSchema.type = .string
             fullSchema.enumValues = caseLabels
         }
@@ -167,7 +167,7 @@ public class JsonSchemaCreator {
         var required = [String]()
         
         // Handle enums. We shouldn't need to check for case iterable because they should all really adhere
-        if mirror.displayStyle == .enum, let enumObject = object as? (CaseIterable & Codable) {
+        if mirror.displayStyle == .enum, let enumObject = object as? (any CaseIterable & Codable) {
             let jsonSchema = try handleEnums(enumObject: enumObject, id: id, schema: schema, propertyDescriptions: propertyDescriptions)
             properties["\(T.self)"] = jsonSchema
             //            // Get all the types
