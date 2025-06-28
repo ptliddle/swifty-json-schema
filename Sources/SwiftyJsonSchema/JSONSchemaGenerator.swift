@@ -155,6 +155,14 @@ public class JSONSchemaGenerator {
      
     // bypassEnumDetection is mainly used when calling from handleEnum to deal with associatedTypes so we don't end up in a loop
     private func _generateSchema<T>(for object: T, schema: JSONSchema? = nil, bypassEnumDetection: Bool = false) throws -> JSONSchema where T: Any {
+
+        // Handle decorated types first. We unwrap them and send them on
+        if let metadataSchema = object as? (any BaseJSONSchemaMetadataProtocol) {
+            // Extract out wrappedValue
+            var schema = try _generateSchema(for: metadataSchema.subjectValue)
+            schema.description = metadataSchema.schemaDescription
+            return schema
+        }
         
         // Create dictionaries to store properties and required fields
         var properties: [String: JSONSchema] = [:]
@@ -164,15 +172,8 @@ public class JSONSchemaGenerator {
         let mirror = Mirror(reflecting: object)
         let typeHint = mirror.displayStyle
         
-        // Handle decorated types first
-        var object = object
-        if let metadataSchema = object as? JSONSchemaMetadataProtocol {
-            let description = metadataSchema.description
-            print("handle metadata by adding desc: \(description)")
-        }
-        
         // First things first, check if it's a primitive type and we can handle based on the information we already have without needing reflection and return schema
-        if let schema = try generateSchemaForBaseTypes(object, typeHint: typeHint) {
+        if var schema = try generateSchemaForBaseTypes(object, typeHint: typeHint) {
             return schema // We have a base type so return it
         }
         
@@ -192,6 +193,7 @@ public class JSONSchemaGenerator {
         // First we check if we're at the base, i.e. a basic type. It should have no children
         // Dictionaries and Arrays are considered base types
         guard !mirror.children.isEmpty else {
+            
             // If we got here it's not a Primitive or Foundation type, but it has not children, theres only a view edge cases that meet that so let's deal with them
             
             // empty classes, structs
@@ -200,48 +202,6 @@ public class JSONSchemaGenerator {
             }
             return JSONSchema()
         }
-        
-        var parentOptional = false
-        
-        // Now handle complex base types, i.e. enum, dictionary and array
-        if let displayStyle = mirror.displayStyle {
-            switch displayStyle {
-            case .struct, .class:
-                break // struct and class can just be handled normally by parsing their chilren recursively
-            case .enum, .tuple, .dictionary, .set:
-                print("SPECIAL TYPE NOT YET HANDLED")
-            case .optional:
-                print("HANDLE OPTIONAL")
-                parentOptional = true
-                break
-   
-            case .collection:
-                guard let array = object as? [Any] else {
-                    throw JSONSchemaGenerationError.invalidCollection("\(type(of:object))")
-                }
-                
-                // For array we need to get a collection element and recurse on it
-                // If the array is empty, we can't determine the item type
-                if array.isEmpty {
-                    return JSONSchema(type: .array)
-                }
-                
-                // Get the first item to determine array item type
-                guard let firstItem = array.first else {
-                    return JSONSchema(type: .array)
-                }
-                
-                // Check that the item is Codable
-                guard let arrayItem = firstItem as? Codable else {
-                    throw JSONSchemaGenerationError.notACodableType("\(type(of:firstItem.self))")
-                }
-                
-                // Generate schema for the item
-                let itemSchema = try _generateSchema(for: arrayItem) //try generateSchemaForProperty(arrayItem)
-                return JSONSchema(type: .array, items: itemSchema)
-            }
-        }
-        
 
         var schema = schema ?? JSONSchema(type: .object) // ?? generateSchemaForProperty(object)
         
@@ -251,34 +211,25 @@ public class JSONSchemaGenerator {
         func handleChildren() throws {
             // Process each child in the mirror
             for child in mirror.children {
+                
+                let value = child.value
+                
+                // Guard it's not a ignored property and skip if it is
+                if value is JSONSchemaIgnorable { continue }
+                
                 // Skip if the property has no label
                 guard let propertyName = child.label else { continue }
                 
                 // Clean the property name (remove underscore prefix for property wrappers)
                 let cleanPropertyName = cleanPropertyName(propertyName)
                 
-                let value = child.value
-              
-//                if isOptional(child.value) {
-//                    let propertySchema = try generateSchemaForBaseTypes(value, typeHint: .optional)
-//                    properties[cleanPropertyName] = propertySchema
-//                }
-//                else if isEnum(child.value){
-//                    guard let value = child.value as? (any CaseIterable & Codable) else {
-//                        throw JSONSchemaGenerationError.notCaseIterableEnum("\(child.value.self)")
-//                    }
-//                    let schema = try handleEnums(enumObject: value)
-//                    properties[cleanPropertyName] = schema
-//                }
-//                else {
-                    // Generate schema for this property
-                    let propertySchema = try _generateSchema(for: value)
-                    properties[cleanPropertyName] = propertySchema
+                // Generate schema for this property
+                let propertySchema = try _generateSchema(for: value)
+                properties[cleanPropertyName] = propertySchema
                 
-                    if !isOptional(value) {
-                        required.append(cleanPropertyName)
-                    }
-//                }
+                if !(isOptional(value)) {
+                    required.append(cleanPropertyName)
+                }
             }
             
             // Add properties and required fields to the schema
@@ -323,7 +274,9 @@ public class JSONSchemaGenerator {
     /// - Parameter value: The value to check
     /// - Returns: True if the value is an Optional, false otherwise
     private func isOptional(_ value: Any) -> Bool {
-        return Mirror(reflecting: value).displayStyle == .optional
+        let displayOptional = Mirror(reflecting: value).displayStyle == .optional
+        let optionalDecorated = value is OptionalJSONSchemaMetadataProtocol
+        return displayOptional || optionalDecorated
     }
     
     

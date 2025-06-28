@@ -193,7 +193,7 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
             let jsonData = try JSONEncoder().encode(self)
             
             let jsonForPrint = try JSONSerialization.jsonObject(with: jsonData, options: .fragmentsAllowed)
-            let prettyPrintData = try JSONSerialization.data(withJSONObject: jsonForPrint, options: .prettyPrinted)
+            let prettyPrintData = try JSONSerialization.data(withJSONObject: jsonForPrint, options: [.prettyPrinted, .sortedKeys])
             
             return String(data: prettyPrintData, encoding: .utf8) ?? ""
         }
