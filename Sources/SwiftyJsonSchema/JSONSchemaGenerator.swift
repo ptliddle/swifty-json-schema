@@ -21,8 +21,13 @@ enum JSONSchemaGenerationError: Error {
 /// A class that generates JSON Schema from Swift Codable types
 public class JSONSchemaGenerator {
     
+    
+    
     /// Configuration options for JSON Schema generation
     public struct Configuration {
+        
+        public static let defaultJsonSchemaVersion = "http://json-schema.org/draft-07/schema#"
+        
         /// The JSON Schema version to use
         public let schemaVersion: String
         
@@ -33,7 +38,7 @@ public class JSONSchemaGenerator {
         public let includeDescriptions: Bool
         
         /// Initialize with default values
-        public init(schemaVersion: String = "http://json-schema.org/draft-07/schema#", schemaId: String? = nil, includeDescriptions: Bool = true) {
+        public init(schemaVersion: String = Self.defaultJsonSchemaVersion, schemaId: String? = nil, includeDescriptions: Bool = true) {
             self.schemaVersion = schemaVersion
             self.schemaId = schemaId
             self.includeDescriptions = includeDescriptions
@@ -42,6 +47,10 @@ public class JSONSchemaGenerator {
     
     /// The configuration for this generator
     private let configuration: Configuration
+    
+    private lazy var baseSchema: JSONSchema = {
+        return JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
+    }()
     
     /// Initialize with the given configuration
     public init(configuration: Configuration = Configuration()) {
@@ -125,13 +134,12 @@ public class JSONSchemaGenerator {
     public func generateSchema<T>(for object: T) throws -> JSONSchema where T: Codable {
         // Create a base schema with the configuration values
         let schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
-        return try _generateSchema(for: object, schema: schema)
+        return try _generateSchema(for: object, schema: baseSchema)
     }
     
     public func generateSchema<T>(for object: T) throws -> JSONSchema where T: CaseIterable {
         // Create a base schema with the configuration values
-        let schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
-        return try _generateSchema(for: object, schema: schema)
+        return try _generateSchema(for: object, schema: baseSchema)
     }
     
     // Helper function
@@ -285,23 +293,22 @@ public class JSONSchemaGenerator {
     /// - Parameters:
     ///   - type: The type to generate a schema for
     /// - Returns: A JSONSchema object representing the schema
-    public func generateSchema<T: ProducesJSONSchema>(for type: T.Type) throws -> JSONSchema {
+    public func generateSchema<T: ProducesJSONSchema>(from type: T.Type) throws -> JSONSchema {
         let instance = T.exampleValue
-        return try _generateSchema(for: instance)
+        return try _generateSchema(for: instance, schema: baseSchema)
     }
     
-    public func generateSchema<T: CaseIterable>(for type: T.Type) throws -> JSONSchema {
-        
-        var schema = JSONSchema()
-        
-        let subSchemas = try T.allCases.map { enumdCase in
-            try _generateSchema(for: enumdCase)
+    /// Generate a JSON Schema for the given CaseIterable type
+    /// - Parameters:
+    ///   - type: The type to generate a schema for
+    /// - Returns: A JSONSchema object representing the schema
+    public func generateSchema<T>(from type: T.Type) throws -> JSONSchema where T: CaseIterable {
+        guard let instance = T.allCases.first else {
+            throw JSONSchemaGenerationError.noEnumCases
         }
-        
-        schema.type = .object
-        schema.oneOf = subSchemas
-        return schema
+        return try _generateSchema(for: instance, schema: baseSchema)
     }
+    
     
     // MARK: - Private Methods
     

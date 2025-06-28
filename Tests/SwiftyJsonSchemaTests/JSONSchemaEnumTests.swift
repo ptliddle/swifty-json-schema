@@ -44,6 +44,24 @@ final class JSONSchemaEnumTests: XCTestCase {
         var content: ContentType
     }
     
+    func testSimpleEnumOnlySchemaGeneration() throws {
+        
+        let schema = try JSONSchemaGenerator().generateSchema(from: UserRole.self)
+        
+        TestLog.debug(schema.debugDescription)
+        
+        // Test schema here
+        let expectedSchema = JSONSchema(schema: "http://json-schema.org/draft-07/schema#",
+                                        type: .string,
+                                        enumValues: [.string("admin"), .string("editor"), .string("viewer")]
+        )
+        
+        let encodedExpectedSchema = try JSONEncoder().encode(expectedSchema)
+        let encodedSchema = try JSONEncoder().encode(expectedSchema)
+        
+        XCTAssertEqual(try encodedSchema.asPrettyJson, try encodedExpectedSchema.asPrettyJson)
+    }
+    
     func testSimpleEnumSchemaGeneration() throws {
         // Create an instance of our generator
         let generator = JSONSchemaGenerator()

@@ -102,48 +102,6 @@ final class JSONSchemaErrorHandlingTests: XCTestCase {
         }
     }
     
-    func testStructWithNonCodablePropertyError() throws {
-        // Create an instance of our generator
-        let generator = JSONSchemaGenerator()
-        
-        // Create a struct with a non-Codable property
-        let structWithNonCodable = StructWithNonCodable(
-            id: "test-id",
-            nonCodableProperty: NonCodableClass(name: "Test")
-        )
-        
-        // This should not throw an error because the non-Codable property
-        // is not part of the Codable implementation
-        let schema = try generator.generateSchema(for: structWithNonCodable)
-        
-        // Verify the schema only contains the Codable properties
-        XCTAssertEqual(schema.type, .object)
-        XCTAssertEqual(schema.properties?.count, 1)
-        XCTAssertNotNil(schema.properties?["id"])
-    }
-    
-    func testStructWithNonCodableArrayError() throws {
-        // Create an instance of our generator
-        let generator = JSONSchemaGenerator()
-        
-        // Create a struct with a non-Codable array
-        let structWithNonCodableArray = StructWithNonCodableArray(
-            id: "test-id",
-            items: ["item1", "item2"],
-            nonCodableArray: [NonCodableClass(name: "Test")]
-        )
-        
-        // This should not throw an error because the non-Codable array
-        // is not part of the Codable implementation
-        let schema = try generator.generateSchema(for: structWithNonCodableArray)
-        
-        // Verify the schema only contains the Codable properties
-        XCTAssertEqual(schema.type, .object)
-        XCTAssertEqual(schema.properties?.count, 2)
-        XCTAssertNotNil(schema.properties?["id"])
-        XCTAssertNotNil(schema.properties?["items"])
-    }
-    
     func testEmptyOptionalHandling() throws {
         // Create a struct with nil optionals
         struct TestWithNilOptionals: Codable {

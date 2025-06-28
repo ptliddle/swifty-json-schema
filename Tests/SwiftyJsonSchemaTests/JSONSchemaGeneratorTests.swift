@@ -16,7 +16,7 @@ extension Data {
             let jsonObject = try JSONSerialization.jsonObject(with: self, options: [])
             
             // Convert the object back to JSON data with pretty print option
-            let prettyPrintedData = try JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted])
+            let prettyPrintedData = try JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys])
             
             return try prettyPrintedData.string
         }
@@ -116,7 +116,7 @@ final class JSONSchemaGeneratorTests: XCTestCase {
         let generator = JSONSchemaGenerator()
         
         // Generate schema from the type
-        let schema = try generator.generateSchema(for: PersonProduces.self)
+        let schema = try generator.generateSchema(from: PersonProduces.self)
         
         // Define the expected schema
         let expectedSchema = JSONSchema(
@@ -134,7 +134,11 @@ final class JSONSchemaGeneratorTests: XCTestCase {
         // Assert that the schema matches our expected schema
         // Note: This test will fail initially as we haven't implemented the actual schema generation yet
         XCTAssertEqual(schema.type, expectedSchema.type)
-        XCTAssertEqual(schema.schema, expectedSchema.schema)
+        
+        // Let's encode and then use the asPrettyPrint json helper which produces sorted json to check they match
+        let encodedSchema = try encoder.encode(schema)
+        let encodedExpectedSchema = try encoder.encode(expectedSchema)
+        XCTAssertEqual(try encodedSchema.asPrettyJson, try encodedExpectedSchema.asPrettyJson)
         
         // Check required properties
         XCTAssertEqual(Set(schema.required ?? []), Set(expectedSchema.required ?? []))

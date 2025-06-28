@@ -59,7 +59,7 @@ final class JSONSchemaEmptyTypeTests: XCTestCase {
     func testEmptyStructWithProducerSchemaGeneration() throws {
         let generator = JSONSchemaGenerator()
         
-        let schema = try generator.generateSchema(for: EmptyStructWithProducer.self)
+        let schema = try generator.generateSchema(from: EmptyStructWithProducer.self)
         
         // An empty struct should still generate a valid object schema
         XCTAssertEqual(schema.type, .object)
