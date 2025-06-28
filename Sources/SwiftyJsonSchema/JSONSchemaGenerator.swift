@@ -104,9 +104,7 @@ public class JSONSchemaGenerator {
             let allSchemas = try associatedTypeEnums.map { caseValue in
                 let label = "\(caseValue.self)"
                 
-                var props = [String: JSONSchema]()
-                var required = [String]()
-                var schema = try generateSchema(for: caseValue)
+                var schema = try _generateSchema(for: caseValue, bypassEnumDetection: true)
                 
                 schema.id = label
                 return schema
@@ -135,8 +133,20 @@ public class JSONSchemaGenerator {
         let schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
         return try _generateSchema(for: object, schema: schema)
     }
+    
+    // Helper function
+    private func isEnum(_ value: Any, mirror: Mirror) -> Bool {
+        let mirror = Mirror(reflecting: value)
+        if mirror.displayStyle == .enum {
+            return true
+        }
+        
+        // Additional checks for RawRepresentable, etc.
+        return value is (any CaseIterable & Codable)
+    }
      
-    private func _generateSchema<T>(for object: T, schema: JSONSchema? = nil) throws -> JSONSchema where T: Any {
+    // bypassEnumDetection is mainly used when calling from handleEnum to deal with associatedTypes so we don't end up in a loop
+    private func _generateSchema<T>(for object: T, schema: JSONSchema? = nil, bypassEnumDetection: Bool = false) throws -> JSONSchema where T: Any {
         
         // Create dictionaries to store properties and required fields
         var properties: [String: JSONSchema] = [:]
@@ -161,12 +171,14 @@ public class JSONSchemaGenerator {
         //MARK: - Advanced types
         // When we get here we're dealing with complex types, either structs, classes, etc or special types like enums or Decorated types
         
-        
-
-        
-        // Let's first deal with special types like enums
-//        mirror
-        
+        //Check if it's an enum. Enum's need special handling
+        if isEnum(object) && !bypassEnumDetection {
+            guard let enumObject = object as? (CaseIterable & Codable) else {
+                throw JSONSchemaGenerationError.notCaseIterableEnum("For \(object.self), it needs to conform to CaseIterable")
+            }
+            let enumSchema = try handleEnums(enumObject: enumObject)
+            return enumSchema
+        }
 
         
         // First we check if we're at the base, i.e. a basic type. It should have no children
