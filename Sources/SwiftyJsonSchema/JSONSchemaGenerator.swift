@@ -239,25 +239,26 @@ public class JSONSchemaGenerator {
                 
                 let value = child.value
               
-                if isOptional(child.value) {
-                    let propertySchema = try generateSchemaForBaseTypes(value, typeHint: .optional)
-                    properties[cleanPropertyName] = propertySchema
-                }
-                else if isEnum(child.value){
-                    guard let value = child.value as? (any CaseIterable & Codable) else {
-                        throw JSONSchemaGenerationError.notCaseIterableEnum("\(child.value.self)")
-                    }
-                    let schema = try handleEnums(enumObject: value)
-                    properties[cleanPropertyName] = schema
-                }
-                else {
+//                if isOptional(child.value) {
+//                    let propertySchema = try generateSchemaForBaseTypes(value, typeHint: .optional)
+//                    properties[cleanPropertyName] = propertySchema
+//                }
+//                else if isEnum(child.value){
+//                    guard let value = child.value as? (any CaseIterable & Codable) else {
+//                        throw JSONSchemaGenerationError.notCaseIterableEnum("\(child.value.self)")
+//                    }
+//                    let schema = try handleEnums(enumObject: value)
+//                    properties[cleanPropertyName] = schema
+//                }
+//                else {
                     // Generate schema for this property
                     let propertySchema = try _generateSchema(for: value)
                     properties[cleanPropertyName] = propertySchema
-                    if !parentOptional {
+                
+                    if !isOptional(value) {
                         required.append(cleanPropertyName)
                     }
-                }
+//                }
             }
             
             // Add properties and required fields to the schema
@@ -380,7 +381,7 @@ public class JSONSchemaGenerator {
             guard let realValue = optValue else {
                 return JSONSchema(type: .null)
             }
-            return try generateSchemaForBaseTypes(realValue, typeHint: typeHint)
+            return try _generateSchema(for: realValue)
             
         default:
             // If it's not a Foundation or Primitive Swift type return nil
