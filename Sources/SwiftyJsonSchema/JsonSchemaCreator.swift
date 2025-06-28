@@ -239,7 +239,7 @@ public class JsonSchemaCreator {
             
             // Allow additional properties if it's a dynamic schema
             if value is DynamicSchema {
-                jsonSchema.additionalProperties = true
+                jsonSchema.additionalProperties = .bool(true)
             }
             
             if label != "wrappedValue" {

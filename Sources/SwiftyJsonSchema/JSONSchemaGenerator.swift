@@ -172,7 +172,13 @@ public class JSONSchemaGenerator {
         // First we check if we're at the base, i.e. a basic type. It should have no children
         // Dictionaries and Arrays are considered base types
         guard !mirror.children.isEmpty else {
-            return try generateSchemaForBaseTypes(object, typeHint: nil)!
+            // If we got here it's not a Primitive or Foundation type, but it has not children, theres only a view edge cases that meet that so let's deal with them
+            
+            // empty classes, structs
+            if typeHint == .class || typeHint == .struct {
+                return JSONSchema(type: .object) // We return an empty object for these types
+            }
+            return JSONSchema()
         }
         
         var parentOptional = false
@@ -305,30 +311,10 @@ public class JSONSchemaGenerator {
         return Mirror(reflecting: value).displayStyle == .enum
     }
     
-   
-//    private func handleComplesBaseTypes<T>(_ value: T) throws -> JSONSchema where T: Any {
-//        // Handle complex base types like array, dictionary and optional
-//        
-//    }
-//    
-    
     /// Generate a JSON Schema for a property value
     /// - Parameter value: The property value to generate a schema for
     /// - Returns: A JSONSchema object representing the property
     private func generateSchemaForBaseTypes<T>(_ value: T, typeHint: Mirror.DisplayStyle?) throws -> JSONSchema? where T: Any {
-        // Handle optionals by unwrapping and recursing
-//        if isOptional(value) {
-//            let mirror = Mirror(reflecting: value)
-//            if let firstChild = mirror.children.first {
-//                guard let value = firstChild.value as? Codable else {
-//                    throw JSONSchemaGenerationError.notACodableType("\(type(of: firstChild))")
-//                }
-//                return try generateSchemaForBaseTypes(value)
-//            } else {
-//                // For nil optionals, return a placeholder schema
-//                return JSONSchema(type: .object)
-//            }
-//        }
         
         // Handle basic primitive types
         switch value {
@@ -377,7 +363,7 @@ public class JSONSchemaGenerator {
         // Handle dictionaries (even empty ones)
         case let dict as [String: Any]:
             var schema = JSONSchema(type: .object)
-            schema.additionalProperties = true
+            schema.additionalProperties = .bool(true)
             
             if !dict.isEmpty {
                 var properties = [String: JSONSchema]()

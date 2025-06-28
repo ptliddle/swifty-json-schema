@@ -70,12 +70,12 @@ final class SchemaProducerTests: XCTestCase {
             schema: "http://json-schema.org/draft-07/schema#",
             type: .object,
             properties: [
-                "name": JSONSchema(type: .string, additionalProperties: false),
-                "age": JSONSchema(type: .integer, additionalProperties: false),
+                "name": JSONSchema(type: .string, additionalProperties: .bool(false)),
+                "age": JSONSchema(type: .integer, additionalProperties: .bool(false)),
                 "hobbies": JSONSchema(
                     type: .array,
-                    items: JSONSchema(type: .string, additionalProperties: false),
-                    additionalProperties: false
+                    items: JSONSchema(type: .string, additionalProperties: .bool(false)),
+                    additionalProperties: .bool(false)
                 )
             ],
             required: ["name", "age", "hobbies"]
@@ -137,37 +137,37 @@ final class SchemaProducerTests: XCTestCase {
             schema: "http://json-schema.org/draft-07/schema#",
             type: .object,
             properties: [
-                "name": JSONSchema(type: .string, additionalProperties: false),
-                "location": JSONSchema(type: .string, additionalProperties: false),
+                "name": JSONSchema(type: .string, additionalProperties: .bool(false)),
+                "location": JSONSchema(type: .string, additionalProperties: .bool(false)),
                 "date": JSONSchema(
                     type: .object,
                     properties: [
-                        "timeIntervalSinceReferenceDate": JSONSchema(type: .number, additionalProperties: false)
+                        "timeIntervalSinceReferenceDate": JSONSchema(type: .number, additionalProperties: .bool(false))
                     ],
                     required: ["timeIntervalSinceReferenceDate"],
-                    additionalProperties: false
+                    additionalProperties: .bool(false)
                 ),
                 "attendees": JSONSchema(
                     type: .array,
                     items: JSONSchema(
                         type: .object,
                         properties: [
-                            "name": JSONSchema(type: .string, additionalProperties: false),
-                            "age": JSONSchema(type: .integer, additionalProperties: false),
+                            "name": JSONSchema(type: .string, additionalProperties: .bool(false)),
+                            "age": JSONSchema(type: .integer, additionalProperties: .bool(false)),
                             "hobbies": JSONSchema(
                                 type: .array,
-                                items: JSONSchema(type: .string, additionalProperties: false),
-                                additionalProperties: false
+                                items: JSONSchema(type: .string, additionalProperties: .bool(false)),
+                                additionalProperties: .bool(false)
                             )
                         ],
                         required: ["name", "age", "hobbies"],
-                        additionalProperties: false
+                        additionalProperties: .bool(false)
                     ),
-                    additionalProperties: false
+                    additionalProperties: .bool(false)
                 )
             ],
             required: ["name", "date", "location", "attendees"],
-            additionalProperties: false
+            additionalProperties: .bool(false)
         )
         
         // Assert that the schema matches our expected schema
@@ -178,7 +178,18 @@ final class SchemaProducerTests: XCTestCase {
         XCTAssertEqual(Set(schema.required ?? []), Set(expectedSchema.required ?? []))
         
         // Check additionalProperties
-        XCTAssertEqual(schema.additionalProperties, expectedSchema.additionalProperties)
+        if let schemaAdditionalProps = schema.additionalProperties, let expectedAdditionalProps = expectedSchema.additionalProperties {
+            switch (schemaAdditionalProps, expectedAdditionalProps) {
+            case (.bool(let a), .bool(let b)):
+                XCTAssertEqual(a, b)
+            case (.schema(let a), .schema(let b)):
+                XCTAssertEqual(a.type, b.type)
+            default:
+                XCTFail("additionalProperties types don't match")
+            }
+        } else {
+            XCTAssertEqual(schema.additionalProperties == nil, expectedSchema.additionalProperties == nil)
+        }
         
         // Check individual properties
         guard let schemaProperties = schema.properties,
@@ -235,16 +246,16 @@ final class SchemaProducerTests: XCTestCase {
             schema: "http://json-schema.org/draft-07/schema#",
             type: .object,
             properties: [
-                "name": JSONSchema(type: .string, additionalProperties: false),
-                "age": JSONSchema(type: .integer, additionalProperties: false),
+                "name": JSONSchema(type: .string, additionalProperties: .bool(false)),
+                "age": JSONSchema(type: .integer, additionalProperties: .bool(false)),
                 "hobbies": JSONSchema(
                     type: .array,
-                    items: JSONSchema(type: .string, additionalProperties: false),
-                    additionalProperties: false
+                    items: JSONSchema(type: .string, additionalProperties: .bool(false)),
+                    additionalProperties: .bool(false)
                 )
             ],
             required: ["name", "age", "hobbies"],
-            additionalProperties: false
+            additionalProperties: .bool(false)
         )
         
         // Assert that the decoded schema matches our expected schema
@@ -312,37 +323,37 @@ final class SchemaProducerTests: XCTestCase {
             schema: "http://json-schema.org/draft-07/schema#",
             type: .object,
             properties: [
-                "name": JSONSchema(type: .string, additionalProperties: false),
-                "location": JSONSchema(type: .string, additionalProperties: false),
+                "name": JSONSchema(type: .string, additionalProperties: .bool(false)),
+                "location": JSONSchema(type: .string, additionalProperties: .bool(false)),
                 "date": JSONSchema(
                     type: .object,
                     properties: [
-                        "timeIntervalSinceReferenceDate": JSONSchema(type: .number, additionalProperties: false)
+                        "timeIntervalSinceReferenceDate": JSONSchema(type: .number, additionalProperties: .bool(false))
                     ],
                     required: ["timeIntervalSinceReferenceDate"],
-                    additionalProperties: false
+                    additionalProperties: .bool(false)
                 ),
                 "attendees": JSONSchema(
                     type: .array,
                     items: JSONSchema(
                         type: .object,
                         properties: [
-                            "name": JSONSchema(type: .string, additionalProperties: false),
-                            "age": JSONSchema(type: .integer, additionalProperties: false),
+                            "name": JSONSchema(type: .string, additionalProperties: .bool(false)),
+                            "age": JSONSchema(type: .integer, additionalProperties: .bool(false)),
                             "hobbies": JSONSchema(
                                 type: .array,
-                                items: JSONSchema(type: .string, additionalProperties: false),
-                                additionalProperties: false
+                                items: JSONSchema(type: .string, additionalProperties: .bool(false)),
+                                additionalProperties: .bool(false)
                             )
                         ],
                         required: ["name", "age", "hobbies"],
-                        additionalProperties: false
+                        additionalProperties: .bool(false)
                     ),
-                    additionalProperties: false
+                    additionalProperties: .bool(false)
                 )
             ],
             required: ["name", "date", "location", "attendees"],
-            additionalProperties: false
+            additionalProperties: .bool(false)
         )
         
         // Assert that the decoded schema matches our expected schema

@@ -56,6 +56,44 @@ public final class PassthroughContainer: Codable, Sendable {
     }
 }
 
+public enum AdditionalPropertiesType: Codable, Sendable, Equatable {
+    public static func == (lhs: AdditionalPropertiesType, rhs: AdditionalPropertiesType) -> Bool {
+        
+        if case let AdditionalPropertiesType.bool(lhsBool) = lhs, case let AdditionalPropertiesType.bool(rhsBool) = rhs {
+            return lhsBool == rhsBool
+        }
+        else if case let AdditionalPropertiesType.schema(lhsSchema) = lhs, case let AdditionalPropertiesType.schema(rhsSchema) = rhs {
+            return lhsSchema.type == rhsSchema.type
+        }
+        
+        return false
+    }
+    
+    case bool(Bool)
+    indirect case schema(JSONSchema)
+    
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .bool(let boolValue):
+            try container.encode(boolValue)
+        case .schema(let schemaValue):
+            try container.encode(schemaValue)
+        }
+    }
+    
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let boolValue = try? container.decode(Bool.self) {
+            self = .bool(boolValue)
+        }
+        else {
+            let schemaValue = try container.decode(JSONSchema.self)
+            self = .schema(schemaValue)
+        }
+    }
+}
+
 // A struct to represent a JSON Schema
 public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
    
@@ -75,7 +113,7 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
     var minLength: Int?
     var maxLength: Int?
     var pattern: String?
-    var additionalProperties: Bool?
+    var additionalProperties: AdditionalPropertiesType?
     
     var contentEncoding: String?
     var contentMediaType: String?
@@ -105,7 +143,10 @@ public struct JSONSchema: Codable, Sendable, CustomDebugStringConvertible {
         case oneOf
     }
     
-    public init(id: String? = nil, schema: String? = nil, title: String? = nil, type: JSONSchemaType? = nil, properties: [String : JSONSchema]? = nil, required: [String]? = nil, items: JSONSchema? = nil, description: String? = nil, enumValues: [Value]? = nil, format: String? = nil, minimum: Double? = nil, maximum: Double? = nil, minLength: Int? = nil, maxLength: Int? = nil, pattern: String? = nil, additionalProperties: Bool? = nil, anyOf: [JSONSchema]? = nil, oneOf: [JSONSchema]? = nil) {
+    public init(id: String? = nil, schema: String? = nil, title: String? = nil, type: JSONSchemaType? = nil, properties: [String : JSONSchema]? = nil,
+                required: [String]? = nil, items: JSONSchema? = nil, description: String? = nil, enumValues: [Value]? = nil, format: String? = nil,
+                minimum: Double? = nil, maximum: Double? = nil, minLength: Int? = nil, maxLength: Int? = nil, pattern: String? = nil,
+                additionalProperties: AdditionalPropertiesType? = nil, anyOf: [JSONSchema]? = nil, oneOf: [JSONSchema]? = nil) {
         self.id = id
         self.schema = schema
         self.title = title
