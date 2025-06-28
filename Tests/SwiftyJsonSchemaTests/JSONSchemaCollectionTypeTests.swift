@@ -42,7 +42,7 @@ final class JSONSchemaCollectionTypeTests: XCTestCase {
         
         
         XCTAssertEqual(schema.type, JSONSchemaType.array)
-        XCTAssertEqual(schema.items!.items!.type, .string)
+        XCTAssertEqual(schema.items!.content!.type, .string)
     }
     
     func testWrappedStringArraySchemaGeneration() throws {
@@ -55,7 +55,7 @@ final class JSONSchemaCollectionTypeTests: XCTestCase {
         
         if let properties = schema.properties, let itemsProp = properties["items"] {
             XCTAssertEqual(itemsProp.type, JSONSchemaType.array)
-            if let items = itemsProp.items, let itemSchema = items.items {
+            if let items = itemsProp.items, let itemSchema = items.content {
                 XCTAssertEqual(itemSchema.type, JSONSchemaType.string)
             } else {
                 XCTFail("Items schema should not be nil")
@@ -70,7 +70,7 @@ final class JSONSchemaCollectionTypeTests: XCTestCase {
         let schema = try generator.generateSchema(for: [1, 2, 3])
         
         XCTAssertEqual(schema.type, JSONSchemaType.array)
-        XCTAssertEqual(schema.items!.items!.type, .integer)
+        XCTAssertEqual(schema.items!.content!.type, .integer)
     }
     
     func testWrappedIntArraySchemaGeneration() throws {
@@ -83,7 +83,7 @@ final class JSONSchemaCollectionTypeTests: XCTestCase {
         
         if let properties = schema.properties, let itemsProp = properties["items"] {
             XCTAssertEqual(itemsProp.type, JSONSchemaType.array)
-            if let items = itemsProp.items, let itemSchema = items.items {
+            if let items = itemsProp.items, let itemSchema = items.content {
                 XCTAssertEqual(itemSchema.type, JSONSchemaType.integer)
             } else {
                 XCTFail("Items schema should not be nil")

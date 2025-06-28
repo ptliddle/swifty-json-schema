@@ -105,15 +105,33 @@ final class SchemaProducerTests: XCTestCase {
         XCTAssertEqual(schemaProperties["hobbies"]?.type, expectedProperties["hobbies"]?.type)
         
         // Check hobbies items
-        XCTAssertEqual(schemaProperties["hobbies"]?.items?.items?.type, expectedProperties["hobbies"]?.items?.items?.type)
+        XCTAssertEqual(schemaProperties["hobbies"]?.items?.content?.type, expectedProperties["hobbies"]?.items?.content?.type)
         
         // Convert schema to JSON string
         let jsonData = try JSONEncoder().encode(schema)
         
         // Define expected JSON string
         let expectedJsonString = """
-        {"properties":{"name":{"items":{},"additionalProperties":false,"type":"string"},"age":{"items":{},"additionalProperties":false,"type":"integer"},"hobbies":{"items":{"items":{"type":"string","items":{},"additionalProperties":false}},"additionalProperties":false,"type":"array"}},"additionalProperties":false,"required":["name","age","hobbies"],"type":"object","items":{},"$schema":"http://json-schema.org/draft-07/schema#"}
-        """.trimmingCharacters(in: .whitespacesAndNewlines)
+        {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+            },
+            "age": {
+              "type": "integer",
+            },
+            "hobbies": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["name", "age", "hobbies"],
+        }
+        """
         
         // Parse both JSON strings to compare them as objects (to avoid formatting differences)
         let actualJson = try JSONSerialization.jsonObject(with: jsonData, options: [])
@@ -124,10 +142,10 @@ final class SchemaProducerTests: XCTestCase {
         let normalizedExpectedData = try JSONSerialization.data(withJSONObject: expectedJson, options: .sortedKeys)
         
         // Compare the normalized JSON strings
-        XCTAssertEqual(try normalizedActualData.string, try normalizedExpectedData.string)
+        XCTAssertEqual(try normalizedActualData.asPrettyJson, try normalizedExpectedData.asPrettyJson)
     }
     
-    func testMoreComplexStructToJSONSchema() throws {
+    func testMoreComplexStructToStrictJSONSchema() throws {
         // Create a schema from MootInfo
         let schema = JsonSchemaCreator.createJSONSchema(from: MootInfo.self)
         log(schema)
@@ -288,7 +306,7 @@ final class SchemaProducerTests: XCTestCase {
         XCTAssertEqual(decodedProperties["hobbies"]?.additionalProperties, expectedProperties["hobbies"]?.additionalProperties)
         
         // Check hobbies items
-        XCTAssertEqual(decodedProperties["hobbies"]?.items?.items?.type, expectedProperties["hobbies"]?.items?.items?.type)
+        XCTAssertEqual(decodedProperties["hobbies"]?.items?.content?.type, expectedProperties["hobbies"]?.items?.content?.type)
         
         // Also verify that this schema matches what would be created by the JsonSchemaCreator
         let generatedSchema = JsonSchemaCreator.createJSONSchema(from: PersonInfo.self)
@@ -392,8 +410,8 @@ final class SchemaProducerTests: XCTestCase {
         XCTAssertEqual(decodedProperties["attendees"]?.type, expectedProperties["attendees"]?.type)
         
         // Check attendees items (PersonInfo schema)
-        guard let decodedAttendeeItems = decodedProperties["attendees"]?.items?.items,
-              let expectedAttendeeItems = expectedProperties["attendees"]?.items?.items else {
+        guard let decodedAttendeeItems = decodedProperties["attendees"]?.items?.content,
+              let expectedAttendeeItems = expectedProperties["attendees"]?.items?.content else {
             XCTFail("Missing attendees items")
             return
         }
@@ -415,7 +433,7 @@ final class SchemaProducerTests: XCTestCase {
         XCTAssertEqual(decodedPersonProps["hobbies"]?.type, expectedPersonProps["hobbies"]?.type)
         
         // Check hobbies items
-        XCTAssertEqual(decodedPersonProps["hobbies"]?.items?.items?.type, expectedPersonProps["hobbies"]?.items?.items?.type)
+        XCTAssertEqual(decodedPersonProps["hobbies"]?.items?.content?.type, expectedPersonProps["hobbies"]?.items?.content?.type)
         
         // Also verify that this schema matches what would be created by the JsonSchemaCreator
         let generatedSchema = JsonSchemaCreator.createJSONSchema(from: MootInfo.self)

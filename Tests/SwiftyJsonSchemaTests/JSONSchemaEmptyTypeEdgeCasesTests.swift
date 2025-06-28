@@ -128,10 +128,10 @@ final class JSONSchemaEmptyTypeEdgeCasesTests: XCTestCase {
         XCTAssertEqual(schema.type, .array)
         
         // Items should be objects
-        XCTAssertEqual(schema.items?.items?.type, .object)
+        XCTAssertEqual(schema.items?.content?.type, .object)
         
         // Items should have empty or nil properties
-        XCTAssertTrue(schema.items?.items?.properties?.isEmpty ?? true)
+        XCTAssertTrue(schema.items?.content?.properties?.isEmpty ?? true)
     }
     
 //    func testDictionaryWithEmptyStructValuesSchemaGeneration() throws {

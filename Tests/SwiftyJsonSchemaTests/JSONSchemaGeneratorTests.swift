@@ -108,7 +108,7 @@ final class JSONSchemaGeneratorTests: XCTestCase {
         XCTAssertEqual(schemaProperties["hobbies"]?.type, expectedProperties["hobbies"]?.type)
         
         // Check hobbies items
-        XCTAssertEqual(schemaProperties["hobbies"]?.items?.items?.type, expectedProperties["hobbies"]?.items?.items?.type)
+        XCTAssertEqual(schemaProperties["hobbies"]?.items?.content?.type, expectedProperties["hobbies"]?.items?.content?.type)
     }
     
     func testTypeSchemaGeneration() throws {
@@ -160,7 +160,7 @@ final class JSONSchemaGeneratorTests: XCTestCase {
         XCTAssertEqual(schemaProperties["hobbies"]?.type, expectedProperties["hobbies"]?.type)
         
         // Check hobbies items
-        XCTAssertEqual(schemaProperties["hobbies"]?.items?.items?.type, expectedProperties["hobbies"]?.items?.items?.type)
+        XCTAssertEqual(schemaProperties["hobbies"]?.items?.content?.type, expectedProperties["hobbies"]?.items?.content?.type)
     }
     
     // Test structures for nested object schema generation
@@ -247,11 +247,11 @@ final class JSONSchemaGeneratorTests: XCTestCase {
         XCTAssertEqual(schemaProperties["books"]?.type, expectedProperties["books"]?.type)
         
         // Check books items - need to access through the PassthroughContainer
-        XCTAssertEqual(schemaProperties["books"]?.items?.items?.type, expectedProperties["books"]?.items?.items?.type)
+        XCTAssertEqual(schemaProperties["books"]?.items?.content?.type, expectedProperties["books"]?.items?.content?.type)
         
         // Check nested book properties
-        guard let bookProperties = schemaProperties["books"]?.items?.items?.properties,
-              let expectedBookProperties = expectedProperties["books"]?.items?.items?.properties else {
+        guard let bookProperties = schemaProperties["books"]?.items?.content?.properties,
+              let expectedBookProperties = expectedProperties["books"]?.items?.content?.properties else {
             XCTFail("Missing book properties in schema")
             return
         }
@@ -260,8 +260,8 @@ final class JSONSchemaGeneratorTests: XCTestCase {
         XCTAssertEqual(bookProperties["title"]?.type, expectedBookProperties["title"]?.type)
         
         // Check book required fields
-        if let schemaRequired = schemaProperties["books"]?.items?.items?.required,
-           let expectedRequired = expectedProperties["books"]?.items?.items?.required {
+        if let schemaRequired = schemaProperties["books"]?.items?.content?.required,
+           let expectedRequired = expectedProperties["books"]?.items?.content?.required {
             XCTAssertEqual(Set(schemaRequired), Set(expectedRequired))
         } else {
             XCTFail("Missing required fields in nested schema")
@@ -338,6 +338,6 @@ final class JSONSchemaGeneratorTests: XCTestCase {
         XCTAssertEqual(schemaProperties["sequelTitles"]?.type, expectedProperties["sequelTitles"]?.type)
         
         // Check array item type
-        XCTAssertEqual(schemaProperties["sequelTitles"]?.items?.items?.type, expectedProperties["sequelTitles"]?.items?.items?.type)
+        XCTAssertEqual(schemaProperties["sequelTitles"]?.items?.content?.type, expectedProperties["sequelTitles"]?.items?.content?.type)
     }
 }

@@ -40,12 +40,13 @@ extension JSONSchemaType {
     }
 }
 
-/// Used when you need to reference a JSONSchema but you can't directly reference yourself in a struct in Swift
+/// Used when you need to reference a JSONSchema but you can't directly reference yourself in a struct in Swift.
+/// this class is transparent to encode and decode, outputting items directly without a property
 public final class PassthroughContainer: Codable, Sendable {
-    let items: JSONSchema?
+    private let _items: JSONSchema?
     
     init(_ items: JSONSchema?) {
-        self.items = items
+        self._items = items
     }
     
     static func contain(_ items: JSONSchema?) -> Self? {
@@ -53,6 +54,25 @@ public final class PassthroughContainer: Codable, Sendable {
             return Self(items)
         }
         return nil
+    }
+    
+    public var content: JSONSchema? {
+        return _items
+    }
+    
+    enum CodingKeys: CodingKey {
+        case _items
+    }
+    
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self._items = try container.decode(JSONSchema.self)
+    }
+    
+    // When encoding or decoding this class should be transparent
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self._items)
     }
 }
 

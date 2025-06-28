@@ -175,7 +175,7 @@ final class JSONSchemaComplexTypeTests: XCTestCase {
         XCTAssertEqual(properties["children"]?.type, .array)
         
         // Navigate to child object schema
-        guard let childSchema = properties["children"]?.items?.items else {
+        guard let childSchema = properties["children"]?.items?.content else {
             XCTFail("Missing child schema")
             return
         }
@@ -187,7 +187,7 @@ final class JSONSchemaComplexTypeTests: XCTestCase {
         XCTAssertNotNil(childSchema.properties?["metadata"])
         
         // Navigate to grandchild object schema
-        guard let grandchildSchema = childSchema.properties?["grandchildren"]?.items?.items else {
+        guard let grandchildSchema = childSchema.properties?["grandchildren"]?.items?.content else {
             XCTFail("Missing grandchild schema")
             return
         }

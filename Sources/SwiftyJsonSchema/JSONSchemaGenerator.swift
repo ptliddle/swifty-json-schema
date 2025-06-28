@@ -293,7 +293,7 @@ public class JSONSchemaGenerator {
     /// - Parameters:
     ///   - type: The type to generate a schema for
     /// - Returns: A JSONSchema object representing the schema
-    public func generateSchema<T: ProducesJSONSchema>(from type: T.Type) throws -> JSONSchema {
+    public func generateSchema<T: ProducesJSONSchema>(from type: T.Type, srict: Bool = false) throws -> JSONSchema {
         let instance = T.exampleValue
         return try _generateSchema(for: instance, schema: baseSchema)
     }
@@ -302,7 +302,7 @@ public class JSONSchemaGenerator {
     /// - Parameters:
     ///   - type: The type to generate a schema for
     /// - Returns: A JSONSchema object representing the schema
-    public func generateSchema<T>(from type: T.Type) throws -> JSONSchema where T: CaseIterable {
+    public func generateSchema<T>(from type: T.Type, srict: Bool = false) throws -> JSONSchema where T: CaseIterable {
         guard let instance = T.allCases.first else {
             throw JSONSchemaGenerationError.noEnumCases
         }
