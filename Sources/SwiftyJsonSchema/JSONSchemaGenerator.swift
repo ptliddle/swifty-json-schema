@@ -155,14 +155,17 @@ public class JSONSchemaGenerator {
      
     // bypassEnumDetection is mainly used when calling from handleEnum to deal with associatedTypes so we don't end up in a loop
     private func _generateSchema<T>(for object: T, schema: JSONSchema? = nil, bypassEnumDetection: Bool = false) throws -> JSONSchema where T: Any {
-
+        
         // Handle decorated types first. We unwrap them and send them on
         if let metadataSchema = object as? (any BaseJSONSchemaMetadataProtocol) {
             // Extract out wrappedValue
             var schema = try _generateSchema(for: metadataSchema.subjectValue)
             schema.description = metadataSchema.schemaDescription
+            schema.additionalProperties = metadataSchema.additionalProperties
             return schema
         }
+        
+
         
         // Create dictionaries to store properties and required fields
         var properties: [String: JSONSchema] = [:]
@@ -174,6 +177,12 @@ public class JSONSchemaGenerator {
         
         // First things first, check if it's a primitive type and we can handle based on the information we already have without needing reflection and return schema
         if var schema = try generateSchemaForBaseTypes(object, typeHint: typeHint) {
+            // Check for type level metdata
+            if let metadata = object as? GeneratesJSONSchemaMetadata {
+                schema.additionalProperties = metadata.additionalProperties
+                schema.description = metadata.schemaDescription
+            }
+            
             return schema // We have a base type so return it
         }
         

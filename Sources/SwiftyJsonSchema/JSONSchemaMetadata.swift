@@ -8,18 +8,32 @@
 
 import Foundation
 
+protocol GeneratesJSONSchemaMetadata {
+    var schemaDescription: String? { get }
+    var additionalProperties: AdditionalPropertiesType? { get }
+}
+
+extension GeneratesJSONSchemaMetadata {
+    var schemaDescription: String? {
+        return nil
+    }
+    
+    var additionalProperties: AdditionalPropertiesType?  {
+        return nil
+    }
+}
+
 protocol BaseJSONSchemaMetadataProtocol: Sendable {
     associatedtype T
     var schemaDescription: String? { get }
     var subjectValue: T? { get }
+    var additionalProperties: AdditionalPropertiesType? { get }
 }
 
 protocol JSONSchemaIgnorable: Codable {}
 
 @propertyWrapper
 public struct JSONSchemaExclude<Value: Codable>: JSONSchemaIgnorable {
-    
-//    public var wrappedValue: Value // This is ignored
     
     public var _wrappedValue: Value?
     
@@ -36,7 +50,7 @@ public struct JSONSchemaExclude<Value: Codable>: JSONSchemaIgnorable {
     }
 
     public init(from decoder: any Decoder) throws {
-        var container = try decoder.singleValueContainer()
+        let container = try decoder.singleValueContainer()
         self._wrappedValue = try container.decode(Value.self)
     }
     
@@ -56,12 +70,14 @@ protocol OptionalJSONSchemaMetadataProtocol: Codable, Sendable, BaseJSONSchemaMe
 }
 
 @propertyWrapper
-public struct OptionalJSONSchemaMetadata<T: Codable>: OptionalJSONSchemaMetadataProtocol {
+public struct OptionalJSONSchemaMetadata<T>: OptionalJSONSchemaMetadataProtocol where T: Codable, T: Sendable{
     
     public var wrappedValue: T?
     public var schemaDescription: String?
+    
+    public var additionalProperties: AdditionalPropertiesType?
 
-    public init(wrappedValue: T?, description: String = "", oType: T.Type = T.self) {
+    public init(wrappedValue: T?, description: String? = nil, additionalProperties: AdditionalPropertiesType? = nil, oType: T.Type = T.self) {
         self.wrappedValue = wrappedValue
         self.schemaDescription = description
     }
@@ -90,12 +106,14 @@ protocol JSONSchemaMetadataProtocol: Codable, Sendable, BaseJSONSchemaMetadataPr
 }
 
 @propertyWrapper
-public struct JSONSchemaMetadata<T: Codable>: JSONSchemaMetadataProtocol {
+public struct JSONSchemaMetadata<T>: JSONSchemaMetadataProtocol where T: Codable, T: Sendable{
 
     public var wrappedValue: T
     public var schemaDescription: String?
+    
+    public var additionalProperties: AdditionalPropertiesType?
 
-    public init(wrappedValue: T, description: String = "", oType: T.Type = T.self) {
+    public init(wrappedValue: T, description: String? = nil, additionalProperties: AdditionalPropertiesType? = nil, oType: T.Type = T.self) {
         self.wrappedValue = wrappedValue
         self.schemaDescription = description
     }

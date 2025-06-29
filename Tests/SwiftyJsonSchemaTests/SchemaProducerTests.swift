@@ -38,12 +38,20 @@ func log(_ items: Any...) {
 struct PersonInfo: ProducesJSONSchema {
     static var exampleValue: PersonInfo = PersonInfo(name: "Bob", age: 115, hobbies: ["3D Printing", "Space Exploration", "Classical Music", "Star Trek", "Talking to Guppie", "Drinking Coffee"])
     
-    var name: String
-    var age: Int
-    var hobbies: [String]
+    @JSONSchemaMetadata(additionalProperties: .bool(false))
+    var name: String = ""
+    
+    @JSONSchemaMetadata(additionalProperties: .bool(false))
+    var age: Int = 0
+    
+    @JSONSchemaMetadata(additionalProperties: .bool(false))
+    var hobbies: [String] = []
 }
 
-struct MootInfo: ProducesJSONSchema {
+struct MootInfo: ProducesJSONSchema, GeneratesJSONSchemaMetadata {
+
+    var additionalProperties: SwiftyJsonSchema.AdditionalPropertiesType? = .bool(true)
+    
     static var exampleValue = MootInfo(name: "Moot 5", date: .now, location: "Vert", attendees: [
         PersonInfo.exampleValue,
         PersonInfo(name: "Ricker", age: 68, hobbies: ["Military Strategy", "Combat Tactics", "Weapons Systems", "Interstellar Warfare"]),
@@ -51,10 +59,17 @@ struct MootInfo: ProducesJSONSchema {
     ])
     
     
-    var name: String
-    var date: Date
-    var location: String
-    var attendees: [PersonInfo]
+    @JSONSchemaMetadata(additionalProperties: .bool(false))
+    var name: String = ""
+    
+    @JSONSchemaMetadata(additionalProperties: .bool(false))
+    var date: Date = .now
+    
+    @JSONSchemaMetadata(additionalProperties: .bool(false))
+    var location: String = ""
+    
+    @JSONSchemaMetadata(additionalProperties: .bool(false))
+    var attendees: [PersonInfo] = []
 }
 
 // MARK: Tests
