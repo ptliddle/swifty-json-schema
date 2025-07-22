@@ -21,8 +21,6 @@ enum JSONSchemaGenerationError: Error {
 /// A class that generates JSON Schema from Swift Codable types
 public class JSONSchemaGenerator {
     
-    
-    
     /// Configuration options for JSON Schema generation
     public struct Configuration {
         
@@ -59,6 +57,13 @@ public class JSONSchemaGenerator {
     
     func handleEnums<E>(enumObject: E) throws -> JSONSchema where E: CaseIterable, E: Codable {
         
+        var schemaDescriptions: [String: String]?
+        
+        // Check json schema descriptions
+        if let EX = E.self as? HasCustomJSONSchemaDescriptions.Type {
+            schemaDescriptions = EX.schemaDescriptions
+        }
+        
         func getRawValueType<T: RawRepresentable>(for enumType: T.Type) -> String {
             return "\(T.RawValue.self)"
         }
@@ -70,6 +75,7 @@ public class JSONSchemaGenerator {
         var associatedTypeEnums = [E]()
         
         E.allCases.forEach { enumObj in
+            
             let mirror = Mirror(reflecting: enumObj)
             if mirror.children.isEmpty {
                 basicEnums.append(enumObj)
@@ -83,7 +89,7 @@ public class JSONSchemaGenerator {
             // There are 2 types of basic enums those that are `default` and RawRepresentables. Defaults are always strings in jsonschema
             var schemaType: JSONSchemaType = try {
                 
-                if let rawEnumObject = enumObject as? (RawRepresentable & Codable) {
+                if let rawEnumObject = enumObject as? (any RawRepresentable & Codable) {
                     let type = type(of: rawEnumObject)
                     let rawTypeString = getRawValueType(for: type)
                     let jsonType = try JSONSchemaType(withRawEnumType: rawTypeString)
@@ -191,7 +197,7 @@ public class JSONSchemaGenerator {
         
         //Check if it's an enum. Enum's need special handling
         if isEnum(object) && !bypassEnumDetection {
-            guard let enumObject = object as? (CaseIterable & Codable) else {
+            guard let enumObject = object as? (any CaseIterable & Codable) else {
                 throw JSONSchemaGenerationError.notCaseIterableEnum("For \(object.self), it needs to conform to CaseIterable")
             }
             let enumSchema = try handleEnums(enumObject: enumObject)
@@ -253,21 +259,21 @@ public class JSONSchemaGenerator {
     /// - Parameters:
     ///   - type: The type to generate a schema for
     /// - Returns: A JSONSchema object representing the schema
-    public func generateSchema<T: ProducesJSONSchema>(from type: T.Type, srict: Bool = false) throws -> JSONSchema {
+    public func generateSchema<T: ProducesJSONSchema>(from type: T.Type, strict: Bool = false) throws -> JSONSchema {
         let instance = T.exampleValue
         return try _generateSchema(for: instance, schema: baseSchema)
     }
     
-    /// Generate a JSON Schema for the given CaseIterable type
-    /// - Parameters:
-    ///   - type: The type to generate a schema for
-    /// - Returns: A JSONSchema object representing the schema
-    public func generateSchema<T>(from type: T.Type, srict: Bool = false) throws -> JSONSchema where T: CaseIterable {
-        guard let instance = T.allCases.first else {
-            throw JSONSchemaGenerationError.noEnumCases
-        }
-        return try _generateSchema(for: instance, schema: baseSchema)
-    }
+//    /// Generate a JSON Schema for the given CaseIterable type
+//    /// - Parameters:
+//    ///   - type: The type to generate a schema for
+//    /// - Returns: A JSONSchema object representing the schema
+//    public func generateSchema<T>(from type: T.Type, srict: Bool = false) throws -> JSONSchema where T: CaseIterable {
+//        guard let instance = T.allCases.first else {
+//            throw JSONSchemaGenerationError.noEnumCases
+//        }
+//        return try _generateSchema(for: instance, schema: baseSchema)
+//    }
     
     
     // MARK: - Private Methods
@@ -276,7 +282,17 @@ public class JSONSchemaGenerator {
     /// - Parameter propertyName: The raw property name
     /// - Returns: The cleaned property name
     private func cleanPropertyName(_ propertyName: String) -> String {
-        return propertyName.hasPrefix("_") ? String(propertyName.dropFirst()) : propertyName
+        
+        // Cleans up property names to work with JSON
+        if propertyName.hasPrefix("_") {
+            return String(propertyName.dropFirst())
+        }
+        else if propertyName.hasPrefix(".") {
+            // Handles tuple elements where you have .0, .1, etc and converts them to a more JSON friendly format
+            return "_" + String(propertyName.dropFirst())
+        }
+    
+        return propertyName
     }
     
     /// Determines if a value is an Optional type
@@ -284,7 +300,7 @@ public class JSONSchemaGenerator {
     /// - Returns: True if the value is an Optional, false otherwise
     private func isOptional(_ value: Any) -> Bool {
         let displayOptional = Mirror(reflecting: value).displayStyle == .optional
-        let optionalDecorated = value is OptionalJSONSchemaMetadataProtocol
+        let optionalDecorated = value is (any OptionalJSONSchemaMetadataProtocol)
         return displayOptional || optionalDecorated
     }
     

@@ -8,7 +8,11 @@
 
 import Foundation
 
-protocol GeneratesJSONSchemaMetadata {
+public protocol HasCustomJSONSchemaDescriptions {
+    static var schemaDescriptions: [String: String] { get }
+}
+
+public protocol GeneratesJSONSchemaMetadata {
     var schemaDescription: String? { get }
     var additionalProperties: AdditionalPropertiesType? { get }
 }
@@ -23,7 +27,7 @@ extension GeneratesJSONSchemaMetadata {
     }
 }
 
-protocol BaseJSONSchemaMetadataProtocol: Sendable {
+public protocol BaseJSONSchemaMetadataProtocol: Sendable {
     associatedtype T
     var schemaDescription: String? { get }
     var subjectValue: T? { get }
@@ -46,7 +50,12 @@ public struct JSONSchemaExclude<Value: Codable>: JSONSchemaIgnorable {
     }
     
     public var wrappedValue: Value {
-        return _wrappedValue ?? { fatalError("This shouldn't happen") }()
+        get {
+            return _wrappedValue ?? { fatalError("This shouldn't happen") }()
+        }
+        set {
+            _wrappedValue = newValue
+        }
     }
 
     public init(from decoder: any Decoder) throws {
@@ -69,8 +78,25 @@ protocol OptionalJSONSchemaMetadataProtocol: Codable, Sendable, BaseJSONSchemaMe
     var wrappedValue: T? { get }
 }
 
+public extension KeyedDecodingContainer {
+    
+    // Provide a decode method for the OptionalJSONSchemaMetadata so if the associated property is missing in the input JSON
+    // it returns a OptionalJSONSchemaMetadata with a wrapped nil value rather then failing to decode
+    public func decode<T>(_ type: OptionalJSONSchemaMetadata<T>.Type, forKey key: Key) throws -> OptionalJSONSchemaMetadata<T> where T: Decodable {
+        do {
+            let value = try self.decode(T.self, forKey: key)
+            return OptionalJSONSchemaMetadata(wrappedValue: value)
+        }
+        catch DecodingError.keyNotFound(_, _) {
+            // If no key return a nil value
+            return OptionalJSONSchemaMetadata(wrappedValue: nil)
+        }
+    }
+}
+ 
+
 @propertyWrapper
-public struct OptionalJSONSchemaMetadata<T>: OptionalJSONSchemaMetadataProtocol where T: Codable, T: Sendable{
+public struct OptionalJSONSchemaMetadata<T>: OptionalJSONSchemaMetadataProtocol where T: Codable, T: Sendable {
     
     public var wrappedValue: T?
     public var schemaDescription: String?
@@ -91,11 +117,11 @@ public struct OptionalJSONSchemaMetadata<T>: OptionalJSONSchemaMetadataProtocol 
     // Custom decoding to ignore the description
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        self.wrappedValue = try container.decode(T.self)
+        self.wrappedValue = try container.decode(T?.self)
         self.schemaDescription = ""
     }
     
-    var subjectValue: T? {
+    public var subjectValue: T? {
         return wrappedValue
     }
 }
@@ -131,7 +157,7 @@ public struct JSONSchemaMetadata<T>: JSONSchemaMetadataProtocol where T: Codable
         self.schemaDescription = ""
     }
     
-    var subjectValue: T? {
+    public var subjectValue: T? {
         return wrappedValue
     }
 }

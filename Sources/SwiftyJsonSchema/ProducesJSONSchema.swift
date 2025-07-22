@@ -13,5 +13,11 @@ public protocol ProducesJSONSchema: JSONSchemaGeneratable {
     static var exampleValue: SchemaType { get }
 }
 
-public protocol ProducesUnionJSONSchema: JSONSchemaGeneratable, CaseIterable where Self.AllCases.Element: JSONSchemaGeneratable { }
+public protocol ProducesUnionJSONSchema: ProducesJSONSchema, CaseIterable where Self.AllCases.Element: JSONSchemaGeneratable { }
 
+public extension ProducesUnionJSONSchema {
+    public typealias SchemaType = Self
+    public static var exampleValue: SchemaType {
+        Self.allCases.first!
+    }
+}
