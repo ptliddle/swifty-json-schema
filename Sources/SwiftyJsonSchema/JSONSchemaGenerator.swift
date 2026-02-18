@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum JSONSchemaGenerationError: Error {
+public enum JSONSchemaGenerationError: Error {
     case notACodableType(String)
     case notCaseIterableEnum(String)
     case notCaseIterableOrCodable(String)
@@ -15,8 +15,29 @@ enum JSONSchemaGenerationError: Error {
     case unknownBaseType
     case invalidCollection(String)
     case invalidOptional(String)
+    case noExampleItemForArray(String)
+    case noExampleItemForDictionary(String)
 }
 
+public struct Path: CustomStringConvertible {
+    
+    static let Root = Self.init(pathComps: [])
+    
+    private let pathComps: [String]
+    
+    private init(pathComps: [String]) {
+        self.pathComps = pathComps
+    }
+    
+    public func appending(path: String) -> Self {
+        let newPath = self.pathComps + [path]
+        return Self.init(pathComps: newPath)
+    }
+    
+    public var description: String {
+        return pathComps.joined(separator: ".")
+    }
+}
 
 /// A class that generates JSON Schema from Swift Codable types
 public class JSONSchemaGenerator {
@@ -55,7 +76,7 @@ public class JSONSchemaGenerator {
         self.configuration = configuration
     }
     
-    func handleEnums<E>(enumObject: E) throws -> JSONSchema where E: CaseIterable, E: Codable {
+    func handleEnums<E>(enumObject: E, path: Path) throws -> JSONSchema where E: CaseIterable, E: Codable {
         
         var schemaDescriptions: [String: String]?
         
@@ -119,7 +140,7 @@ public class JSONSchemaGenerator {
             let allSchemas = try associatedTypeEnums.map { caseValue in
                 let label = "\(caseValue.self)"
                 
-                var schema = try _generateSchema(for: caseValue, bypassEnumDetection: true)
+                var schema = try _generateSchema(for: caseValue, bypassEnumDetection: true, path: path)
                 
                 schema.id = label
                 return schema
@@ -140,12 +161,12 @@ public class JSONSchemaGenerator {
     public func generateSchema<T>(for object: T) throws -> JSONSchema where T: Codable {
         // Create a base schema with the configuration values
         let schema = JSONSchema(id: configuration.schemaId, schema: configuration.schemaVersion, type: .object)
-        return try _generateSchema(for: object, schema: baseSchema)
+        return try _generateSchema(for: object, schema: baseSchema, path: .Root.appending(path: "\(T.self)"))
     }
     
     public func generateSchema<T>(for object: T) throws -> JSONSchema where T: CaseIterable {
         // Create a base schema with the configuration values
-        return try _generateSchema(for: object, schema: baseSchema)
+        return try _generateSchema(for: object, schema: baseSchema, path: Path.Root)
     }
     
     // Helper function
@@ -160,12 +181,12 @@ public class JSONSchemaGenerator {
     }
      
     // bypassEnumDetection is mainly used when calling from handleEnum to deal with associatedTypes so we don't end up in a loop
-    private func _generateSchema<T>(for object: T, schema: JSONSchema? = nil, bypassEnumDetection: Bool = false) throws -> JSONSchema where T: Any {
+    private func _generateSchema<T>(for object: T, schema: JSONSchema? = nil, bypassEnumDetection: Bool = false, path: Path) throws -> JSONSchema where T: Any {
         
         // Handle decorated types first. We unwrap them and send them on
         if let metadataSchema = object as? (any BaseJSONSchemaMetadataProtocol) {
             // Extract out wrappedValue
-            var schema = try _generateSchema(for: metadataSchema.subjectValue)
+            var schema = try _generateSchema(for: metadataSchema.subjectValue, path: path)
             schema.description = metadataSchema.schemaDescription
             schema.additionalProperties = metadataSchema.additionalProperties
             return schema
@@ -182,7 +203,7 @@ public class JSONSchemaGenerator {
         let typeHint = mirror.displayStyle
         
         // First things first, check if it's a primitive type and we can handle based on the information we already have without needing reflection and return schema
-        if var schema = try generateSchemaForBaseTypes(object, typeHint: typeHint) {
+        if var schema = try generateSchemaForBaseTypes(object, typeHint: typeHint, path: path) {
             // Check for type level metdata
             if let metadata = object as? GeneratesJSONSchemaMetadata {
                 schema.additionalProperties = metadata.additionalProperties
@@ -200,7 +221,7 @@ public class JSONSchemaGenerator {
             guard let enumObject = object as? (any CaseIterable & Codable) else {
                 throw JSONSchemaGenerationError.notCaseIterableEnum("For \(object.self), it needs to conform to CaseIterable")
             }
-            let enumSchema = try handleEnums(enumObject: enumObject)
+            let enumSchema = try handleEnums(enumObject: enumObject, path: path)
             return enumSchema
         }
 
@@ -209,11 +230,11 @@ public class JSONSchemaGenerator {
         // Dictionaries and Arrays are considered base types
         guard !mirror.children.isEmpty else {
             
-            // If we got here it's not a Primitive or Foundation type, but it has not children, theres only a view edge cases that meet that so let's deal with them
+            // If we got here it's not a Primitive or Foundation type, but it has no children, theres only a few edge cases that meet that so let's deal with them
             
             // empty classes, structs
             if typeHint == .class || typeHint == .struct {
-                return JSONSchema(type: .object) // We return an empty object for these types
+                return JSONSchema(type: .object, properties: [:]) // We return an empty object for these types, along with empty properties as this is required by some validators
             }
             return JSONSchema()
         }
@@ -239,7 +260,7 @@ public class JSONSchemaGenerator {
                 let cleanPropertyName = cleanPropertyName(propertyName)
                 
                 // Generate schema for this property
-                let propertySchema = try _generateSchema(for: value)
+                let propertySchema = try _generateSchema(for: value, path: path.appending(path: propertyName))
                 properties[cleanPropertyName] = propertySchema
                 
                 if !(isOptional(value)) {
@@ -261,7 +282,7 @@ public class JSONSchemaGenerator {
     /// - Returns: A JSONSchema object representing the schema
     public func generateSchema<T: ProducesJSONSchema>(from type: T.Type, strict: Bool = false) throws -> JSONSchema {
         let instance = T.exampleValue
-        return try _generateSchema(for: instance, schema: baseSchema)
+        return try _generateSchema(for: instance, schema: baseSchema, path: .Root)
     }
     
 //    /// Generate a JSON Schema for the given CaseIterable type
@@ -312,7 +333,7 @@ public class JSONSchemaGenerator {
     /// Generate a JSON Schema for a property value
     /// - Parameter value: The property value to generate a schema for
     /// - Returns: A JSONSchema object representing the property
-    private func generateSchemaForBaseTypes<T>(_ value: T, typeHint: Mirror.DisplayStyle?) throws -> JSONSchema? where T: Any {
+    private func generateSchemaForBaseTypes<T>(_ value: T, typeHint: Mirror.DisplayStyle?, path: Path) throws -> JSONSchema? where T: Any {
         
         // Handle basic primitive types
         switch value {
@@ -353,8 +374,11 @@ public class JSONSchemaGenerator {
         case let array as [Any]:
             var schema = JSONSchema(type: .array)
             if !array.isEmpty, let firstItem = array.first {
-                let itemSchema = try _generateSchema(for: firstItem)
+                let itemSchema = try _generateSchema(for: firstItem, path: path)
                 schema.items = PassthroughContainer(itemSchema)
+            }
+            else {
+                throw JSONSchemaGenerationError.noExampleItemForArray("\(path)")
             }
             return schema
             
@@ -366,9 +390,12 @@ public class JSONSchemaGenerator {
             if !dict.isEmpty {
                 var properties = [String: JSONSchema]()
                 for (key, value) in dict {
-                    properties[key] = try _generateSchema(for: value)
+                    properties[key] = try _generateSchema(for: value, path: path)
                 }
                 schema.properties = properties
+            }
+            else {
+                throw JSONSchemaGenerationError.noExampleItemForDictionary("\(path)")
             }
             return schema
             
@@ -378,7 +405,7 @@ public class JSONSchemaGenerator {
             guard let realValue = optValue else {
                 return JSONSchema(type: .null)
             }
-            return try _generateSchema(for: realValue)
+            return try _generateSchema(for: realValue, path: path)
             
         default:
             // If it's not a Foundation or Primitive Swift type return nil
