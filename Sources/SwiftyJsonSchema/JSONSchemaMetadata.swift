@@ -76,6 +76,7 @@ public protocol DynamicSchema {}
 protocol OptionalJSONSchemaMetadataProtocol: Codable, Sendable, BaseJSONSchemaMetadataProtocol {
     associatedtype T
     var wrappedValue: T? { get }
+    var wrappedType: Any.Type { get }
 }
 
 public extension KeyedDecodingContainer {
@@ -123,6 +124,10 @@ public struct OptionalJSONSchemaMetadata<T>: OptionalJSONSchemaMetadataProtocol 
     
     public var subjectValue: T? {
         return wrappedValue
+    }
+
+    var wrappedType: Any.Type {
+        return T.self
     }
 }
 

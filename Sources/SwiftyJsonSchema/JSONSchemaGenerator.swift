@@ -7,6 +7,42 @@
 
 import Foundation
 
+private protocol OptionalValue {
+    var wrappedValue: Any? { get }
+    var wrappedType: Any.Type { get }
+}
+
+private protocol ArrayType {
+    static var elementType: Any.Type { get }
+}
+
+private protocol DictionaryType {
+    static var valueType: Any.Type { get }
+}
+
+extension Optional: OptionalValue {
+    var wrappedValue: Any? {
+        switch self {
+        case .some(let value):
+            return value
+        case .none:
+            return nil
+        }
+    }
+
+    var wrappedType: Any.Type {
+        return Wrapped.self
+    }
+}
+
+extension Array: ArrayType {
+    static var elementType: Any.Type { Element.self }
+}
+
+extension Dictionary: DictionaryType {
+    static var valueType: Any.Type { Value.self }
+}
+
 public enum JSONSchemaGenerationError: Error {
     case notACodableType(String)
     case notCaseIterableEnum(String)
@@ -185,11 +221,31 @@ public class JSONSchemaGenerator {
         
         // Handle decorated types first. We unwrap them and send them on
         if let metadataSchema = object as? (any BaseJSONSchemaMetadataProtocol) {
+            if let optionalMetadata = metadataSchema as? any OptionalJSONSchemaMetadataProtocol {
+                let wrappedSchema = try generateSchemaForOptional(
+                    value: optionalMetadata.wrappedValue,
+                    wrappedType: optionalMetadata.wrappedType,
+                    path: path
+                )
+                var schema = wrappedSchema
+                schema.description = metadataSchema.schemaDescription
+                schema.additionalProperties = metadataSchema.additionalProperties
+                return schema
+            }
+
             // Extract out wrappedValue
             var schema = try _generateSchema(for: metadataSchema.subjectValue, path: path)
             schema.description = metadataSchema.schemaDescription
             schema.additionalProperties = metadataSchema.additionalProperties
             return schema
+        }
+
+        if let optional = object as? OptionalValue {
+            return try generateSchemaForOptional(
+                value: optional.wrappedValue,
+                wrappedType: optional.wrappedType,
+                path: path
+            )
         }
         
 
@@ -234,7 +290,7 @@ public class JSONSchemaGenerator {
             
             // empty classes, structs
             if typeHint == .class || typeHint == .struct {
-                return JSONSchema(type: .object, properties: [:]) // We return an empty object for these types, along with empty properties as this is required by some validators
+                return JSONSchema(type: .object, properties: [:], required: [])
             }
             return JSONSchema()
         }
@@ -409,6 +465,66 @@ public class JSONSchemaGenerator {
             
         default:
             // If it's not a Foundation or Primitive Swift type return nil
+            return nil
+        }
+    }
+
+    private func generateSchemaForOptional(value: Any?, wrappedType: Any.Type, path: Path) throws -> JSONSchema {
+        let wrappedSchema: JSONSchema
+
+        if let value {
+            wrappedSchema = try _generateSchema(for: value, path: path)
+        } else if let schema = try generateSchemaForType(wrappedType, path: path) {
+            wrappedSchema = schema
+        } else {
+            throw JSONSchemaGenerationError.invalidOptional(
+                "Unable to generate a schema for the nil optional wrapped type \(wrappedType) at \(path)"
+            )
+        }
+
+        return wrappedSchema
+    }
+
+    private func generateSchemaForType(_ type: Any.Type, path: Path) throws -> JSONSchema? {
+        switch type {
+        case is String.Type:
+            return JSONSchema(type: .string)
+        case is Int.Type, is Int8.Type, is Int16.Type, is Int32.Type, is Int64.Type,
+             is UInt.Type, is UInt8.Type, is UInt16.Type, is UInt32.Type, is UInt64.Type:
+            return JSONSchema(type: .integer)
+        case is Float.Type, is Double.Type, is Decimal.Type:
+            return JSONSchema(type: .number)
+        case is Bool.Type:
+            return JSONSchema(type: .boolean)
+        case is URL.Type:
+            return JSONSchema(type: .string, format: "uri")
+        case is UUID.Type:
+            return JSONSchema(type: .string, format: "uuid")
+        case is Date.Type:
+            return JSONSchema(type: .string, format: "date-time")
+        case is Data.Type:
+            var schema = JSONSchema(type: .string)
+            schema.contentEncoding = "base64"
+            return schema
+        default:
+            if let arrayType = type as? ArrayType.Type {
+                var schema = JSONSchema(type: .array)
+                if let itemSchema = try generateSchemaForType(arrayType.elementType, path: path) {
+                    schema.items = PassthroughContainer(itemSchema)
+                }
+                return schema
+            }
+
+            if let dictionaryType = type as? DictionaryType.Type {
+                var schema = JSONSchema(type: .object)
+                if let valueSchema = try generateSchemaForType(dictionaryType.valueType, path: path) {
+                    schema.additionalProperties = .schema(valueSchema)
+                } else {
+                    schema.additionalProperties = .bool(true)
+                }
+                return schema
+            }
+
             return nil
         }
     }

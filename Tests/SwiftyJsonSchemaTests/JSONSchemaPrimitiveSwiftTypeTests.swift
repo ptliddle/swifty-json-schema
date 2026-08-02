@@ -141,6 +141,6 @@ final class JSONSchemaPrimitiveSwiftTypeTests: XCTestCase {
         let optionalString: String? = nil
         let schema = try generator.generateSchema(for: optionalString)
         
-        XCTAssertEqual(schema.type, .null)
+        XCTAssertEqual(schema.type, .string)
     }
 }

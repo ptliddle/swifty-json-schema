@@ -71,7 +71,8 @@ final class JSONSchemaSpecialFoundationTypeTests: XCTestCase {
         let noneURL: URL? = nil
         let noneSchema = try generator.generateSchema(for: noneURL)
         
-        XCTAssertEqual(noneSchema.type, .null)
+        XCTAssertEqual(noneSchema.type, .string)
+        XCTAssertEqual(noneSchema.format, "uri")
     }
     
     func testOptionalUUIDSchemaGeneration() throws {
@@ -88,7 +89,8 @@ final class JSONSchemaSpecialFoundationTypeTests: XCTestCase {
         let noneUUID: UUID? = nil
         let noneSchema = try generator.generateSchema(for: noneUUID)
         
-        XCTAssertEqual(noneSchema.type, .null)
+        XCTAssertEqual(noneSchema.type, .string)
+        XCTAssertEqual(noneSchema.format, "uuid")
     }
     
     func testOptionalDateSchemaGeneration() throws {
@@ -105,7 +107,8 @@ final class JSONSchemaSpecialFoundationTypeTests: XCTestCase {
         let noneDate: Date? = nil
         let noneSchema = try generator.generateSchema(for: noneDate)
         
-        XCTAssertEqual(noneSchema.type, .null)
+        XCTAssertEqual(noneSchema.type, .string)
+        XCTAssertEqual(noneSchema.format, "date-time")
     }
     
     func testOptionalDataSchemaGeneration() throws {
@@ -122,6 +125,7 @@ final class JSONSchemaSpecialFoundationTypeTests: XCTestCase {
         let noneData: Data? = nil
         let noneSchema = try generator.generateSchema(for: noneData)
         
-        XCTAssertEqual(noneSchema.type, .null)
+        XCTAssertEqual(noneSchema.type, .string)
+        XCTAssertEqual(noneSchema.contentEncoding, "base64")
     }
 }
