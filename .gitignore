@@ -63,3 +63,5 @@ fastlane/test_output
 
 .idea
 .swiftpm
+.build
+.index-build
