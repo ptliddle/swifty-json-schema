@@ -43,7 +43,7 @@ extension Dictionary: DictionaryType {
     static var valueType: Any.Type { Value.self }
 }
 
-public enum JSONSchemaGenerationError: Error {
+public enum JSONSchemaGenerationError: Error, CustomStringConvertible, LocalizedError {
     case notACodableType(String)
     case notCaseIterableEnum(String)
     case notCaseIterableOrCodable(String)
@@ -53,6 +53,79 @@ public enum JSONSchemaGenerationError: Error {
     case invalidOptional(String)
     case noExampleItemForArray(String)
     case noExampleItemForDictionary(String)
+
+    public var description: String {
+        switch self {
+        case .notACodableType(let typeName):
+            return "Type '\(typeName)' is not Codable. All types used for schema generation must conform to Codable."
+        case .notCaseIterableEnum(let message):
+            return "Enum is not CaseIterable. \(message)"
+        case .notCaseIterableOrCodable(let message):
+            return "Type is neither CaseIterable nor Codable. \(message)"
+        case .noEnumCases:
+            return "The enum has no cases. At least one case is required to generate a schema."
+        case .unknownBaseType:
+            return "Unable to determine the JSON Schema type for the given value."
+        case .invalidCollection(let message):
+            return "Invalid collection encountered. \(message)"
+        case .invalidOptional(let message):
+            return "Invalid optional value encountered. \(message)"
+        case .noExampleItemForArray(let path):
+            return "No example item available for array at path '\(path)'. Provide a non-empty array or a type with a known element type."
+        case .noExampleItemForDictionary(let path):
+            return "No example item available for dictionary at path '\(path)'. Provide a non-empty dictionary or a type with known key and value types."
+        }
+    }
+
+    public var errorDescription: String? {
+        description
+    }
+
+    public var failureReason: String? {
+        switch self {
+        case .notACodableType:
+            return "The type does not conform to the Codable protocol."
+        case .notCaseIterableEnum:
+            return "The enum type does not conform to CaseIterable."
+        case .notCaseIterableOrCodable:
+            return "The type does not conform to either CaseIterable or Codable."
+        case .noEnumCases:
+            return "The enum has zero cases."
+        case .unknownBaseType:
+            return "The value's type could not be mapped to a JSON Schema type."
+        case .invalidCollection:
+            return "The collection could not be introspected."
+        case .invalidOptional:
+            return "The optional value was nil and its wrapped type could not be determined."
+        case .noExampleItemForArray:
+            return "The array was empty and the element type could not be determined."
+        case .noExampleItemForDictionary:
+            return "The dictionary was empty and the value type could not be determined."
+        }
+    }
+
+    public var recoverySuggestion: String? {
+        switch self {
+        case .notACodableType:
+            return "Ensure the type conforms to Codable before generating a schema."
+        case .notCaseIterableEnum:
+            return "Add CaseIterable conformance to the enum, or provide a Codable enum with associated values."
+        case .notCaseIterableOrCodable:
+            return "Make the type conform to either CaseIterable (for simple enums) or Codable."
+        case .noEnumCases:
+            return "Add at least one case to the enum."
+        case .unknownBaseType:
+            return "Ensure the property type is a supported Codable type, primitive, collection, or custom ProducesJSONSchema type."
+        case .invalidCollection:
+            return "Ensure the collection's element type is Codable and supported."
+        case .invalidOptional:
+            return "Provide a non-nil instance or ensure the wrapped type is known at compile time."
+        case .noExampleItemForArray:
+            return "Provide a non-empty array instance or use a typed array property so the element type can be inferred."
+        case .noExampleItemForDictionary:
+            return "Provide a non-empty dictionary instance or use a typed dictionary property so the value type can be inferred."
+        }
+    }
 }
 
 public struct Path: CustomStringConvertible {
@@ -433,6 +506,10 @@ public class JSONSchemaGenerator {
                 let itemSchema = try _generateSchema(for: firstItem, path: path)
                 schema.items = PassthroughContainer(itemSchema)
             }
+            else if let arrayType = type(of: value) as? ArrayType.Type,
+                    let itemSchema = try generateSchemaForType(arrayType.elementType, path: path) {
+                schema.items = PassthroughContainer(itemSchema)
+            }
             else {
                 throw JSONSchemaGenerationError.noExampleItemForArray("\(path)")
             }
@@ -449,6 +526,11 @@ public class JSONSchemaGenerator {
                     properties[key] = try _generateSchema(for: value, path: path)
                 }
                 schema.properties = properties
+            }
+            else if let dictType = type(of: value) as? DictionaryType.Type {
+                if let valueSchema = try generateSchemaForType(dictType.valueType, path: path) {
+                    schema.additionalProperties = .schema(valueSchema)
+                }
             }
             else {
                 throw JSONSchemaGenerationError.noExampleItemForDictionary("\(path)")

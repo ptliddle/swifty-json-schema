@@ -28,6 +28,19 @@ struct NestedEmptyCollections: CaseIterable, Codable {
     let emptyDictOfDicts: [String: [String: Bool]] = [:]
 }
 
+// Test struct with nil optional collections
+struct NilOptionalCollections: Codable {
+    var nilArray: [String]?
+    var nilDict: [String: Int]?
+    var id: String
+
+    init(id: String) {
+        self.id = id
+        self.nilArray = nil
+        self.nilDict = nil
+    }
+}
+
 final class JSONSchemaEmptyCollectionTests: XCTestCase {
     
     // MARK: - Empty Array Tests
@@ -41,8 +54,8 @@ final class JSONSchemaEmptyCollectionTests: XCTestCase {
         // Should be a valid array schema
         XCTAssertEqual(schema.type, .array)
         
-        // For empty arrays, we can't determine the item type through reflection
-        // We can only verify that the schema is correctly identified as an array
+        // Empty arrays should now determine the item type from the static type
+        XCTAssertEqual(schema.items?.content?.type, .string)
     }
     
     func testWrappedEmptyArraySchemaGeneration() throws {
@@ -60,8 +73,8 @@ final class JSONSchemaEmptyCollectionTests: XCTestCase {
         // The emptyArray property should be an array
         XCTAssertEqual(schema.properties?["emptyArray"]?.type, .array)
         
-        // For empty arrays, we can't determine the item type through reflection
-        // We can only verify that the schema is correctly identified as an array
+        // Empty arrays should now determine the item type from the static type
+        XCTAssertEqual(schema.properties?["emptyArray"]?.items?.content?.type, .string)
     }
     
     // MARK: - Empty Dictionary Tests
@@ -75,9 +88,12 @@ final class JSONSchemaEmptyCollectionTests: XCTestCase {
         // Should be a valid object schema
         XCTAssertEqual(schema.type, .object)
         
-        // For empty dictionaries, additionalProperties should be set but we can't determine value type
-        XCTAssertNotNil(schema.additionalProperties)
-        // We can only check that additionalProperties is present, not its specific type
+        // Empty dictionaries should now determine the value type from the static type
+        if case .schema(let valueSchema) = schema.additionalProperties {
+            XCTAssertEqual(valueSchema.type, .integer)
+        } else {
+            XCTFail("Expected additionalProperties to be a schema with integer type")
+        }
     }
     
     func testWrappedEmptyDictionarySchemaGeneration() throws {
@@ -95,9 +111,12 @@ final class JSONSchemaEmptyCollectionTests: XCTestCase {
         // The emptyDict property should be an object
         XCTAssertEqual(schema.properties?["emptyDict"]?.type, .object)
         
-        // For empty dictionaries, additionalProperties should be set but we can't determine value type
-        XCTAssertNotNil(schema.properties?["emptyDict"]?.additionalProperties)
-        // We can only check that additionalProperties is present, not its specific type
+        // Empty dictionaries should now determine the value type from the static type
+        if case .schema(let valueSchema) = schema.properties?["emptyDict"]?.additionalProperties {
+            XCTAssertEqual(valueSchema.type, .integer)
+        } else {
+            XCTFail("Expected additionalProperties to be a schema with integer type")
+        }
     }
     
     // MARK: - Nested Empty Collections Tests
@@ -111,22 +130,70 @@ final class JSONSchemaEmptyCollectionTests: XCTestCase {
         // Container should be an object
         XCTAssertEqual(schema.type, .object)
         
-        // Check emptyArrayOfArrays
+        // Check emptyArrayOfArrays - should be array of arrays of strings
         XCTAssertEqual(schema.properties?["emptyArrayOfArrays"]?.type, .array)
-        // For empty arrays, we can't determine the item type through reflection
+        XCTAssertEqual(schema.properties?["emptyArrayOfArrays"]?.items?.content?.type, .array)
+        XCTAssertEqual(schema.properties?["emptyArrayOfArrays"]?.items?.content?.items?.content?.type, .string)
         
-        // Check emptyArrayOfDicts
+        // Check emptyArrayOfDicts - should be array of objects with integer values
         XCTAssertEqual(schema.properties?["emptyArrayOfDicts"]?.type, .array)
-        // For empty arrays, we can't determine the item type through reflection
+        XCTAssertEqual(schema.properties?["emptyArrayOfDicts"]?.items?.content?.type, .object)
         
-        // Check emptyDictOfArrays
+        // Check emptyDictOfArrays - should be object with array values
         XCTAssertEqual(schema.properties?["emptyDictOfArrays"]?.type, .object)
-        XCTAssertNotNil(schema.properties?["emptyDictOfArrays"]?.additionalProperties)
-        // For empty dictionaries, we can't determine the value type through reflection
+        if case .schema(let valueSchema) = schema.properties?["emptyDictOfArrays"]?.additionalProperties {
+            XCTAssertEqual(valueSchema.type, .array)
+            XCTAssertEqual(valueSchema.items?.content?.type, .integer)
+        } else {
+            XCTFail("Expected additionalProperties to be a schema")
+        }
         
-        // Check emptyDictOfDicts
+        // Check emptyDictOfDicts - should be object with object values
         XCTAssertEqual(schema.properties?["emptyDictOfDicts"]?.type, .object)
-        XCTAssertNotNil(schema.properties?["emptyDictOfDicts"]?.additionalProperties)
-        // For empty dictionaries, we can't determine the value type through reflection
+        if case .schema(let valueSchema) = schema.properties?["emptyDictOfDicts"]?.additionalProperties {
+            XCTAssertEqual(valueSchema.type, .object)
+        } else {
+            XCTFail("Expected additionalProperties to be a schema")
+        }
+    }
+    
+    // MARK: - Nil Optional Collection Tests
+    
+    func testNilOptionalArraySchemaGeneration() throws {
+        let generator = JSONSchemaGenerator()
+        let container = NilOptionalCollections(id: "test")
+        
+        let schema = try generator.generateSchema(for: container)
+        
+        // Container should be an object
+        XCTAssertEqual(schema.type, .object)
+        
+        // nilArray should be an array with string items
+        XCTAssertEqual(schema.properties?["nilArray"]?.type, .array)
+        XCTAssertEqual(schema.properties?["nilArray"]?.items?.content?.type, .string)
+        
+        // nilArray should NOT be in required (it's optional)
+        XCTAssertFalse(schema.required?.contains("nilArray") ?? true)
+    }
+    
+    func testNilOptionalDictionarySchemaGeneration() throws {
+        let generator = JSONSchemaGenerator()
+        let container = NilOptionalCollections(id: "test")
+        
+        let schema = try generator.generateSchema(for: container)
+        
+        // Container should be an object
+        XCTAssertEqual(schema.type, .object)
+        
+        // nilDict should be an object with integer additionalProperties
+        XCTAssertEqual(schema.properties?["nilDict"]?.type, .object)
+        if case .schema(let valueSchema) = schema.properties?["nilDict"]?.additionalProperties {
+            XCTAssertEqual(valueSchema.type, .integer)
+        } else {
+            XCTFail("Expected additionalProperties to be a schema with integer type")
+        }
+        
+        // nilDict should NOT be in required (it's optional)
+        XCTAssertFalse(schema.required?.contains("nilDict") ?? true)
     }
 }
