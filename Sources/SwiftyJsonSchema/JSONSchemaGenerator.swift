@@ -607,6 +607,11 @@ public class JSONSchemaGenerator {
                 return schema
             }
 
+            if let producesType = type as? any ProducesJSONSchema.Type {
+                let instance = producesType.exampleValue
+                return try _generateSchema(for: instance, path: path)
+            }
+
             return nil
         }
     }
